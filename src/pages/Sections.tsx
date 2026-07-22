@@ -50,7 +50,6 @@ export default function Sections() {
           <div key={section.id} className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden card">
             <div className="p-4">
               <div className="flex items-center gap-3 mb-3">
-                <span style={{ color: section.color }}>{iconMap[section.icon] || <BookOpen size={22} />}</span>
                 <div className="flex-1">
                   <h2 className="font-semibold text-text-primary text-sm">{section.name}</h2>
                   <p className="text-xs text-text-muted">{completed}/{total} textos • {pct}%</p>
@@ -142,7 +141,7 @@ export default function Sections() {
                 {days.length > 20 && !expanded.has(section.id) && (
                   <button
                     onClick={() => setExpanded(prev => new Set(prev).add(section.id))}
-                    className="h-7 px-2 rounded-md text-xs flex items-center bg-bg-hover text-text-muted hover:text-text-primary transition-colors btn-ghost"
+                    className="h-7 px-2 rounded-md text-xs flex items-center bg-accent text-white hover:bg-accent/80 transition-colors"
                   >
                     +{days.length - 20}
                   </button>
@@ -150,9 +149,9 @@ export default function Sections() {
                 {expanded.has(section.id) && days.length > 20 && (
                   <button
                     onClick={() => setExpanded(prev => { const next = new Set(prev); next.delete(section.id); return next })}
-                    className="h-7 px-2 rounded-md text-xs flex items-center bg-bg-hover text-text-muted hover:text-text-primary transition-colors btn-ghost"
+                    className="h-7 px-2 rounded-md text-xs flex items-center bg-purple-600 text-white hover:bg-purple-500 transition-colors"
                   >
-                    ▲ recolher
+                    mostrar menos
                   </button>
                 )}
               </div>
