@@ -5,7 +5,7 @@ export interface ReadingDay {
   title: string
   chapters: string
   section: Section
-  marker: '◆' | '•'
+  marker: '🔸' | '🔹' | ''
 }
 
 export interface Section {
