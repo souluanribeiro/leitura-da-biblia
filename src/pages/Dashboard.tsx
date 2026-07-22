@@ -173,16 +173,25 @@ export default function Dashboard() {
   return (
     <div className="p-4 space-y-5 max-w-lg mx-auto pb-8 fade-in">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="relative">
-            <Flame size={32} className="text-orange-500 flame-animate" />
-            {streak > 0 && streak % 7 === 0 && (
-              <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />
-            )}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <div className="relative">
+              <Flame size={32} className="text-orange-500 flame-animate" />
+              {streak > 0 && streak % 7 === 0 && (
+                <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />
+              )}
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-text-primary leading-none">{streak}</div>
+              <div className="text-xs text-text-muted mt-1">dias seguidos</div>
+            </div>
           </div>
-          <div>
-            <div className="text-2xl font-bold text-text-primary leading-none">{streak}</div>
-            <div className="text-xs text-text-muted mt-1">dias seguidos</div>
+          <div className="flex items-center gap-2 pl-4 border-l border-white/10">
+            <CheckCircle size={20} className="text-green-400" />
+            <div>
+              <div className="text-2xl font-bold text-text-primary leading-none">{daysRead}</div>
+              <div className="text-xs text-text-muted mt-1">dias lidos</div>
+            </div>
           </div>
         </div>
         {isComplete ? (
@@ -209,7 +218,6 @@ export default function Dashboard() {
           </svg>
           <div className="absolute inset-0 flex flex-col items-center justify-center">
             <div className="text-3xl font-bold text-text-primary">{pct}%</div>
-            <div className="text-xs text-text-muted mt-1">{daysRead}/366 dias</div>
           </div>
         </div>
       </div>
