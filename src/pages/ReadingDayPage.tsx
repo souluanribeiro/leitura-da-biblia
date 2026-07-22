@@ -172,7 +172,7 @@ export default function ReadingDayPage() {
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all btn-primary ${
             completed
               ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-              : 'bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20'
+              : 'bg-accent text-white hover:bg-accent-light'
           }`}
         >
           <CheckCircle size={16} />
@@ -259,7 +259,7 @@ export default function ReadingDayPage() {
                       <a
                         href={getWolUrl(r.bookNum, ch)}
                         target="_blank" rel="noopener noreferrer"
-                        className="text-xs text-accent bg-accent/10 px-2.5 py-1 rounded-lg hover:bg-accent/20 transition-colors shrink-0"
+                        className="text-xs text-white bg-accent px-2.5 py-1 rounded-lg hover:bg-accent-light transition-colors shrink-0"
                         onClick={e => e.stopPropagation()}
                       >
                         Ler
@@ -286,7 +286,7 @@ export default function ReadingDayPage() {
           placeholder="O que você aprendeu hoje?"
           className="w-full bg-bg-hover border border-white/5 rounded-xl p-3 text-sm text-text-primary placeholder-text-muted resize-none h-28 focus:outline-none focus:border-accent/30"
         />
-        <button onClick={saveNote} className="mt-2 text-xs bg-white/5 hover:bg-white/10 text-text-secondary px-4 py-1.5 rounded-lg transition-colors">
+        <button onClick={saveNote} className="mt-2 text-xs bg-accent hover:bg-accent-light text-white px-4 py-1.5 rounded-lg transition-colors btn-primary">
           {noteSaved ? '✓ Salva' : 'Salvar'}
         </button>
       </div>

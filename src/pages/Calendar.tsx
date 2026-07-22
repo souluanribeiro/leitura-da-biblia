@@ -384,7 +384,7 @@ function DayView({ y, m, d, completed, onPrev, onNext, onToday, navigate, onTogg
           <div className="flex gap-2 pt-2">
             <button
               onClick={() => navigate(`/ler/${rd}`)}
-              className="flex-1 flex items-center justify-center gap-2 bg-accent/10 text-accent py-2.5 rounded-xl text-sm font-medium hover:bg-accent/20 transition-colors btn-primary"
+              className="flex-1 flex items-center justify-center gap-2 bg-accent text-white py-2.5 rounded-xl text-sm font-medium hover:bg-accent-light transition-colors btn-primary"
             >
               <BookOpen size={16} /> {done ? 'Revisar' : 'Iniciar'}
             </button>

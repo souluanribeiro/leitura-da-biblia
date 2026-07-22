@@ -13,9 +13,12 @@ export default defineConfig({
       filename: 'sw.ts',
       strategies: 'injectManifest',
       includeAssets: ['icons/*.png', 'favicon.svg'],
+      workbox: {
+        cleanupOutdatedCaches: true,
+      },
       manifest: {
         name: 'Leitura da Bíblia - Plano de 1 Ano',
-        short_name: 'Ler a Bíblia',
+        short_name: 'Leitura da Bíblia',
         description: 'Leia a Bíblia inteira em 1 ano com a Tradução do Novo Mundo',
         theme_color: '#0f0f1a',
         background_color: '#0f0f1a',

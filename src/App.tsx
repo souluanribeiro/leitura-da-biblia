@@ -10,9 +10,30 @@ import Sections from './pages/Sections'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 
+function useSWAutoReload() {
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (!reg) return
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing
+        if (!newSW) return
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            newSW.postMessage({ type: 'SKIP_WAITING' })
+            window.location.reload()
+          }
+        })
+      })
+    })
+  }, [])
+}
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+
+  useSWAutoReload()
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {

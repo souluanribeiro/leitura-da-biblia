@@ -5,11 +5,31 @@ import { NavigationRoute } from 'workbox-routing'
 
 declare const self: ServiceWorkerGlobalScope & typeof globalThis
 
+// Every build gets a new version — on install, nuke ALL caches
+self.addEventListener('install', () => {
+  self.skipWaiting()
+})
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(
+    caches.keys().then((keys) =>
+      Promise.all(keys.map((k) => caches.delete(k)))
+    ).then(() => self.clients.claim())
+  )
+})
+
 precacheAndRoute(self.__WB_MANIFEST)
 registerRoute(new NavigationRoute())
 
+// Listen for skip-waiting message from the app
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
+})
+
 self.addEventListener('push', (event: PushEvent) => {
-  let data = { title: 'Ler a Bíblia', body: 'Hora da leitura de hoje!', url: '/' }
+  let data = { title: 'Leitura da Bíblia', body: 'Hora da leitura de hoje!', url: '/' }
   if (event.data) {
     try { data = event.data.json() } catch { /* keep default */ }
   }

@@ -3,21 +3,21 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { sections, getDaysInSection } from '../lib/reading-plan'
 import {
-  CheckCircle, ScrollText, BookOpen, Music, MessageSquare,
-  Volume2, Heart, Ship, Mail, Bookmark, Eye,
+  CheckCircle, ScrollText, Music, MessageSquare,
+  Crown, Home, Bird, Users, Mail, PenTool, BookOpen, Cookie,
 } from 'lucide-react'
 
 const iconMap: Record<string, React.ReactNode> = {
   scroll: <ScrollText size={22} />,
-  'book-open': <BookOpen size={22} />,
+  crown: <Crown size={22} />,
+  house: <Home size={22} />,
   music: <Music size={22} />,
   'message-square': <MessageSquare size={22} />,
-  'volume-2': <Volume2 size={22} />,
-  cross: <Heart size={22} />,
-  ship: <Ship size={22} />,
+  dove: <Bird size={22} />,
+  users: <Users size={22} />,
   mail: <Mail size={22} />,
-  bookmark: <Bookmark size={22} />,
-  eye: <Eye size={22} />,
+  'pen-tool': <PenTool size={22} />,
+  cookie: <Cookie size={22} />,
 }
 
 export default function Sections() {

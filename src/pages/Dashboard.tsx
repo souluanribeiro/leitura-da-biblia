@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
-  getReadingForDay, getBookVideoUrl, getTodayReadingDay,
+  getReadingForDay, getBookVideoUrl, getNextUncompletedDay,
   isReadingStarted, getReadingStartDate, setReadingStartDate,
 } from '../lib/reading-plan'
 import { BookOpen, Flame, ChevronRight, CheckCircle, Play, ChevronDown, ChevronUp, Bell, BellOff } from 'lucide-react'
@@ -56,8 +56,7 @@ export default function Dashboard() {
   const [pushLoading, setPushLoading] = useState(false)
 
   const started = isReadingStarted()
-  const todayRd = getTodayReadingDay()
-  const currentDay = todayRd ?? 0
+  const currentDay = started ? getNextUncompletedDay(completedDays) : 0
 
   useEffect(() => { loadProgress(); loadPushStatus() }, [])
 
@@ -156,22 +155,9 @@ export default function Dashboard() {
   }
 
   if (!started || currentDay === 0) {
-    return (
-      <div className="p-4 text-center py-16 space-y-4 max-w-lg mx-auto">
-        <BookOpen size={48} className="text-accent mx-auto" />
-        <h1 className="text-2xl font-bold text-text-primary">Leitura da Bíblia</h1>
-        <p className="text-text-muted text-sm">Comece sua primeira leitura para iniciar o cronograma de 366 dias.</p>
-        <button
-          onClick={() => {
-            setReadingStartDate(new Date())
-            navigate('/ler/1')
-          }}
-          className="bg-accent text-white px-6 py-3 rounded-xl text-sm font-medium hover:bg-accent-light transition-colors btn-primary"
-        >
-          Iniciar primeiro dia
-        </button>
-      </div>
-    )
+    setReadingStartDate(new Date())
+    navigate('/ler/1')
+    return null
   }
 
   const ringR = 52
@@ -183,7 +169,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <Flame size={32} className="text-amber flame-animate" />
+            <Flame size={32} className="text-orange-500 flame-animate" />
             {streak > 0 && streak % 7 === 0 && (
               <span className="absolute -top-1 -right-1 w-3 h-3 bg-accent rounded-full animate-pulse" />
             )}
@@ -196,7 +182,7 @@ export default function Dashboard() {
         {isComplete ? (
           <div className="flex items-center gap-1.5 text-green-400 text-sm font-medium">
             <CheckCircle size={16} />
-            <span>Meta de hoje</span>
+            <span>Leitura concluída</span>
           </div>
         ) : (
           <span className="text-xs text-text-muted">Hoje: ler</span>
@@ -206,9 +192,9 @@ export default function Dashboard() {
       <div className="flex justify-center py-2">
         <div className="relative w-40 h-40">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r={ringR} fill="none" stroke="#252540" strokeWidth="8" />
+            <circle cx="60" cy="60" r={ringR} fill="none" stroke="#333333" strokeWidth="8" />
             <circle
-              cx="60" cy="60" r={ringR} fill="none" stroke="#3b82f6" strokeWidth="8"
+              cx="60" cy="60" r={ringR} fill="none" stroke="#4c6daa" strokeWidth="8"
               strokeDasharray={circumference}
               strokeDashoffset={offset}
               strokeLinecap="round"
@@ -227,7 +213,7 @@ export default function Dashboard() {
           <div className="flex items-center gap-2">
             <BookOpen size={18} className="text-accent" />
             <div>
-              <h2 className="font-semibold text-text-primary">Hoje</h2>
+              <h2 className="font-semibold text-text-primary">Leitura atual</h2>
               <p className="text-xs text-text-muted">Dia {currentDay} do plano</p>
             </div>
           </div>
@@ -237,7 +223,7 @@ export default function Dashboard() {
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all btn-primary ${
               isComplete
                 ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-accent text-bg-dark hover:bg-accent-light'
+                : 'bg-accent text-white hover:bg-accent-light'
             }`}
           >
             {isComplete ? 'Leitura concluída' : checking === currentDay ? '...' : 'Concluir leitura'}
@@ -253,7 +239,7 @@ export default function Dashboard() {
               </div>
               <button
                 onClick={() => navigate(`/ler/${currentDay}`)}
-                className="flex items-center gap-1 text-xs bg-accent/10 text-accent px-3 py-1.5 rounded-lg hover:bg-accent/20 transition-colors shrink-0 btn-ghost"
+                className="flex items-center gap-1 text-xs bg-accent text-white px-3 py-1.5 rounded-lg hover:bg-accent-light transition-colors shrink-0 btn-primary"
               >
                 Iniciar <ChevronRight size={12} />
               </button>
@@ -367,14 +353,14 @@ function VideoCard({ readings }: { readings: { bookNum: number; book: string }[]
   const videoUrl = getBookVideoUrl(r.bookNum)
   if (!videoUrl) return null
   return (
-    <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="block bg-bg-card rounded-2xl p-3 border border-white/5 hover:bg-bg-hover transition-colors">
+    <a href={videoUrl} target="_blank" rel="noopener noreferrer" className="block bg-purple rounded-2xl p-3 hover:bg-purple/80 transition-colors">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center shrink-0">
-          <Play size={18} className="text-accent" />
+        <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+          <Play size={18} className="text-white" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-text-primary font-medium truncate">Vídeo: {r.book}</p>
-          <p className="text-xs text-text-muted truncate">Ver introdução</p>
+          <p className="text-sm text-white font-medium truncate">Vídeo: Introdução a {r.book}</p>
+          <p className="text-xs text-white/70 truncate">Assistir vídeo</p>
         </div>
       </div>
     </a>
