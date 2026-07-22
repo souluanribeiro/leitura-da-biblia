@@ -1,8 +1,6 @@
 import type { ReadingDay, Section } from '../types'
 
 export const sections: Section[] = [
-  { id: 'tratos-israel', name: '🔸Tratos de Deus com os Israelitas', color: '#f97316', icon: 'scroll' },
-  { id: 'congregacao-crista', name: '🔹Desenvolvimento da Congregação Cristã', color: '#3b82f6', icon: 'dove' },
   { id: 'moses', name: 'Escritos de Moisés', color: '#d4a853', icon: 'scroll' },
   { id: 'terra-prometida', name: 'Israel Entra na Terra Prometida', color: '#c0842f', icon: 'cookie' },
   { id: 'reis', name: 'Quando os Reis Governavam Israel', color: '#f59e0b', icon: 'crown' },
@@ -13,6 +11,8 @@ export const sections: Section[] = [
   { id: 'congregacao', name: 'Crescimento da Congregação', color: '#6366f1', icon: 'users' },
   { id: 'cartas-paulo', name: 'As Cartas de Paulo', color: '#a855f7', icon: 'mail' },
   { id: 'outros-apostolos', name: 'Escritos de Outros Apóstolos', color: '#f97316', icon: 'pen-tool' },
+  { id: 'tratos-israel', name: '🔸Tratos de Deus com os Israelitas', color: '#f97316', icon: 'scroll' },
+  { id: 'congregacao-crista', name: '🔹Desenvolvimento da Congregação Cristã', color: '#3b82f6', icon: 'dove' },
 ]
 
 const bookSectionMap: Record<number, Section> = {
