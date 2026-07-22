@@ -202,7 +202,7 @@ export default function ReadingDayPage() {
         return (
           <div key={i} className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden card">
             <div className="p-4 border-b border-white/5 flex items-center gap-3">
-              <span className="text-accent text-xl">{r.marker}</span>
+              <span className={`text-xl ${r.marker === '◆' ? 'text-orange-400' : 'text-accent'}`}>{r.marker}</span>
               <div>
                 <h2 className="font-semibold text-text-primary">{r.title}</h2>
                 <p className="text-xs text-text-muted mt-0.5">{r.section.name}</p>

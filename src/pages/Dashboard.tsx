@@ -238,7 +238,7 @@ export default function Dashboard() {
         <div className="p-4 space-y-3">
           {readings.map((r, i) => (
             <div key={i} className="flex items-center gap-3">
-              <span className="text-accent text-base font-mono">{r.marker}</span>
+              <span className={`text-base font-mono ${r.marker === '◆' ? 'text-orange-400' : 'text-accent'}`}>{r.marker}</span>
               <div className="flex-1 min-w-0">
                 <h3 className="font-medium text-text-primary text-sm">{r.title}</h3>
                 <p className="text-xs text-text-muted mt-0.5">{r.section.name}</p>
