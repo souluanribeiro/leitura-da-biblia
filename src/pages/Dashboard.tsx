@@ -56,9 +56,15 @@ export default function Dashboard() {
   const [pushLoading, setPushLoading] = useState(false)
 
   const started = isReadingStarted()
-  const currentDay = started ? getNextUncompletedDay(completedDays) : 0
+  const [currentDay, setCurrentDay] = useState(() => started ? getNextUncompletedDay(completedDays) : 0)
 
   useEffect(() => { loadProgress(); loadPushStatus() }, [])
+
+  useEffect(() => {
+    if (completedDays.size > 0) {
+      setCurrentDay(getNextUncompletedDay(completedDays))
+    }
+  }, [completedDays])
 
   const loadProgress = async () => {
     const { data } = await supabase.from('reading_progress').select('day_number').order('day_number')
@@ -156,8 +162,8 @@ export default function Dashboard() {
 
   if (!started || currentDay === 0) {
     setReadingStartDate(new Date())
-    navigate('/ler/1')
-    return null
+    const day = getNextUncompletedDay(completedDays)
+    setCurrentDay(day)
   }
 
   const ringR = 52
