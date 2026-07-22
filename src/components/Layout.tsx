@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarDays, LayoutGrid, LogOut, Home, GraduationCap } from 'lucide-react'
+import { BookOpen, CalendarDays, LayoutGrid, LogOut, Home, GraduationCap, StickyNote } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export default function Layout() {
@@ -32,10 +32,6 @@ export default function Layout() {
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-bg-dark/95 backdrop-blur-sm border-t border-white/5 px-2 py-2 flex justify-around">
-        <NavLink to="/" end className={linkClass}>
-          <Home size={20} />
-          <span>Hoje</span>
-        </NavLink>
         <NavLink to="/calendario" className={linkClass}>
           <CalendarDays size={20} />
           <span>Calendário</span>
@@ -43,6 +39,14 @@ export default function Layout() {
         <NavLink to="/secoes" className={linkClass}>
           <LayoutGrid size={20} />
           <span>Seções</span>
+        </NavLink>
+        <NavLink to="/" end className={linkClass}>
+          <Home size={22} />
+          <span className="font-medium">Hoje</span>
+        </NavLink>
+        <NavLink to="/notas" className={linkClass}>
+          <StickyNote size={20} />
+          <span>Notas</span>
         </NavLink>
         <NavLink to="/instrucoes" className={linkClass}>
           <GraduationCap size={20} />

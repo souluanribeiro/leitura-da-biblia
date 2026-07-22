@@ -8,6 +8,7 @@ import ReadingDayPage from './pages/ReadingDayPage'
 import Calendar from './pages/Calendar'
 import Sections from './pages/Sections'
 import Instructions from './pages/Instructions'
+import Notes from './pages/Notes'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="/ler/:day" element={<ReadingDayPage />} />
           <Route path="/calendario" element={<Calendar />} />
           <Route path="/secoes" element={<Sections />} />
+          <Route path="/notas" element={<Notes />} />
           <Route path="/instrucoes" element={<Instructions />} />
         </Route>
       </Route>
