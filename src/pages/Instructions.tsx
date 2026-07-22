@@ -1,4 +1,4 @@
-import { GraduationCap, MessageCircle } from 'lucide-react'
+import { GraduationCap } from 'lucide-react'
 import { Link } from 'react-router-dom'
 
 export default function Instructions() {
@@ -18,12 +18,12 @@ export default function Instructions() {
 
         <div className="space-y-2">
           <div className="flex items-start gap-2">
-            <MessageCircle size={18} className="text-orange-400 mt-0.5 shrink-0" />
+            <span className="text-orange-400 mt-0.5">🔸</span>
             <p>Leia os dias com o marcador <span className="font-semibold text-orange-400">Laranja</span> para ter uma visão histórica geral dos tratos de Deus com os israelitas.</p>
           </div>
           <div className="flex items-start gap-2">
-            <span className="text-base mt-0.5 text-blue-400">•</span>
-            <p>Leia os dias com o marcador <span className="font-semibold text-blue-400">Azul</span> para ter uma visão cronológica geral do desenvolvimento da congregação cristã.</p>
+            <span className="text-pink-400 mt-0.5">🔹</span>
+            <p>Leia os dias com o marcador <span className="font-semibold text-pink-400">Rosa</span> para ter uma visão cronológica geral do desenvolvimento da congregação cristã.</p>
           </div>
         </div>
       </div>
