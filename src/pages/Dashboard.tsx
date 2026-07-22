@@ -237,7 +237,7 @@ export default function Dashboard() {
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all btn-primary ${
               isComplete
                 ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                : 'bg-accent text-white hover:bg-accent-light'
+                : 'bg-orange-500 text-white hover:bg-orange-400'
             }`}
           >
             {isComplete ? 'Leitura concluída' : checking === currentDay ? '...' : 'Concluir leitura'}
