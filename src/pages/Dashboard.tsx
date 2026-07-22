@@ -207,7 +207,7 @@ export default function Dashboard() {
       <div className="flex justify-center py-2">
         <div className="relative w-40 h-40">
           <svg className="w-full h-full -rotate-90" viewBox="0 0 120 120">
-            <circle cx="60" cy="60" r={ringR} fill="none" stroke="#333333" strokeWidth="8" />
+            <circle cx="60" cy="60" r={ringR} fill="none" stroke="#1e3050" strokeWidth="8" />
             <circle
               cx="60" cy="60" r={ringR} fill="none" stroke="#4c6daa" strokeWidth="8"
               strokeDasharray={circumference}

@@ -251,7 +251,7 @@ export default function ReadingDayPage() {
                       className={`flex items-center gap-3 px-3 py-2 rounded-xl text-sm transition-all text-left ${
                         checked
                           ? 'bg-accent/10 text-accent'
-                          : 'bg-bg-hover text-text-secondary hover:bg-white/5'
+                          : 'bg-bg-hover text-text-secondary hover:bg-accent/10'
                       }`}
                     >
                       {checked ? <CheckSquare size={18} className="shrink-0" /> : <Square size={18} className="shrink-0 text-text-muted" />}
