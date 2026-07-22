@@ -149,10 +149,8 @@ export default function ReadingDayPage() {
         if (data) setNoteId(data.id)
       }
       setNoteStatus('saved')
-      setTimeout(() => setNoteStatus('idle'), 2000)
     } catch {
       setNoteStatus('error')
-      setTimeout(() => setNoteStatus('idle'), 3000)
     }
   }, [noteId, dayNum])
 
@@ -298,10 +296,10 @@ export default function ReadingDayPage() {
       <div className="bg-bg-card rounded-2xl p-4 border border-white/5">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-medium text-text-muted">Suas anotações</h3>
-          <span className={`text-xs transition-opacity ${noteStatus === 'idle' ? 'opacity-0' : 'opacity-100'} ${
-            noteStatus === 'saving' ? 'text-text-muted' : noteStatus === 'saved' ? 'text-green-400' : 'text-red-400'
+          <span className={`text-xs ${
+            noteStatus === 'saving' ? 'text-text-muted' : noteStatus === 'error' ? 'text-red-400' : noteContent.trim() ? 'text-green-400' : 'opacity-0'
           }`}>
-            {noteStatus === 'saving' ? 'Salvando...' : noteStatus === 'saved' ? '✓ Salvo' : 'Erro ao salvar'}
+            {noteStatus === 'saving' ? 'Salvando...' : noteStatus === 'error' ? 'Erro ao salvar' : '✓ Salvo'}
           </span>
         </div>
         <textarea
