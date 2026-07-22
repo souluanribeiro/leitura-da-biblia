@@ -1,5 +1,5 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
-import { BookOpen, CalendarDays, LayoutGrid, LogOut, Home } from 'lucide-react'
+import { BookOpen, CalendarDays, LayoutGrid, LogOut, Home, GraduationCap } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 
 export default function Layout() {
@@ -43,6 +43,10 @@ export default function Layout() {
         <NavLink to="/secoes" className={linkClass}>
           <LayoutGrid size={20} />
           <span>Seções</span>
+        </NavLink>
+        <NavLink to="/instrucoes" className={linkClass}>
+          <GraduationCap size={20} />
+          <span>Instruções</span>
         </NavLink>
       </nav>
     </div>
