@@ -1,5 +1,5 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { getReadingForDay, getBookVideoUrl, getWolUrl, isReadingStarted, setReadingStartDate } from '../lib/reading-plan'
 import { getBookIntroVideo } from '../lib/jw-media'
@@ -25,7 +25,7 @@ export default function ReadingDayPage() {
   const readings = getReadingForDay(dayNum)
   const [completed, setCompleted] = useState(false)
   const [noteContent, setNoteContent] = useState('')
-  const [noteSaved, setNoteSaved] = useState(false)
+  const [noteStatus, setNoteStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [noteId, setNoteId] = useState<string | null>(null)
   const [checkedChapters, setCheckedChapters] = useState<Record<string, boolean>>({})
   const [videoUrls, setVideoUrls] = useState<Record<number, string | null>>({})
@@ -135,18 +135,35 @@ export default function ReadingDayPage() {
     }
   }
 
-  const saveNote = async () => {
+  const saveNote = useCallback(async (content: string) => {
     const user = (await supabase.auth.getUser()).data.user
     if (!user) return
-    if (noteId) {
-      await supabase.from('notes').update({ content: noteContent, updated_at: new Date().toISOString() }).eq('id', noteId)
-    } else {
-      const { data } = await supabase.from('notes').insert({ user_id: user.id, day_number: dayNum, content: noteContent }).select('id').single()
-      if (data) setNoteId(data.id)
+    setNoteStatus('saving')
+    try {
+      if (noteId) {
+        const { error } = await supabase.from('notes').update({ content, updated_at: new Date().toISOString() }).eq('id', noteId)
+        if (error) throw error
+      } else {
+        const { data, error } = await supabase.from('notes').insert({ user_id: user.id, day_number: dayNum, content }).select('id').single()
+        if (error) throw error
+        if (data) setNoteId(data.id)
+      }
+      setNoteStatus('saved')
+      setTimeout(() => setNoteStatus('idle'), 2000)
+    } catch {
+      setNoteStatus('error')
+      setTimeout(() => setNoteStatus('idle'), 3000)
     }
-    setNoteSaved(true)
-    setTimeout(() => setNoteSaved(false), 2000)
-  }
+  }, [noteId, dayNum])
+
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!noteContent.trim()) return
+    if (timerRef.current) clearTimeout(timerRef.current)
+    timerRef.current = setTimeout(() => saveNote(noteContent), 1500)
+    return () => { if (timerRef.current) clearTimeout(timerRef.current) }
+  }, [noteContent, saveNote])
 
   if (loading) return <ReadingDaySkeleton />
 
@@ -279,16 +296,20 @@ export default function ReadingDayPage() {
       })}
 
       <div className="bg-bg-card rounded-2xl p-4 border border-white/5">
-        <h3 className="text-sm font-medium text-text-muted mb-2">Suas anotações</h3>
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-sm font-medium text-text-muted">Suas anotações</h3>
+          <span className={`text-xs transition-opacity ${noteStatus === 'idle' ? 'opacity-0' : 'opacity-100'} ${
+            noteStatus === 'saving' ? 'text-text-muted' : noteStatus === 'saved' ? 'text-green-400' : 'text-red-400'
+          }`}>
+            {noteStatus === 'saving' ? 'Salvando...' : noteStatus === 'saved' ? '✓ Salvo' : 'Erro ao salvar'}
+          </span>
+        </div>
         <textarea
           value={noteContent}
           onChange={e => setNoteContent(e.target.value)}
           placeholder="O que você aprendeu hoje?"
           className="w-full bg-bg-hover border border-white/5 rounded-xl p-3 text-sm text-text-primary placeholder-text-muted resize-none h-28 focus:outline-none focus:border-accent/30"
         />
-        <button onClick={saveNote} className="mt-2 text-xs bg-accent hover:bg-accent-light text-white px-4 py-1.5 rounded-lg transition-colors btn-primary">
-          {noteSaved ? '✓ Salva' : 'Salvar'}
-        </button>
       </div>
 
       <div className="flex gap-3">
