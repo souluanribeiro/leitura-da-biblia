@@ -90,6 +90,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - `/ler/{dia}` — Página de leitura do dia
 - `/calendario` — Calendário (4 visões: mês, semana, agenda, ano)
 - `/secoes` — Seções da Bíblia
+- `/notas` — Página de anotações com busca e filtros
 - `/instrucoes` — Instruções com links para Seções e marcadores
 
 ### Seções (`/secoes`)
@@ -102,6 +103,18 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - Link para "Ver todas as seções" → `/secoes`
 - 🔸 para textos sobre os Tratos de Deus com os Israelitas
 - 🔹 para textos sobre o Desenvolvimento da Congregação Cristã
+
+### Notas (`/notas`)
+- Lista todas as anotações do usuário ordenadas por dia (mais recentes primeiro)
+- Busca por texto livre (conteúdo, título, livro)
+- Filtros: seção (prioriza títulos das seções incluindo 🔸🔹), livro
+- Botão "Limpar filtros" quando há filtros ativos
+- Cards com: cor da seção, dia, título, nome da seção, preview da nota (3 linhas)
+- Clique no card navega para `/ler/{dia}`
+- Contador total de notas no topo
+- Estado vazio: mensagem orientativa
+- Loading: skeleton animado
+- **Auto-save** nas anotações (debounce 1.5s) com feedback visual: "Salvando...", "✓ Salvo" (sempre visível), "Erro ao salvar"
 
 ### Autenticação
 - Google OAuth + email/senha via Supabase
@@ -119,10 +132,11 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 
 ---
 
-## Navegação (Bottom Nav)
-- 🏠 Hoje (`/`) — ícone Home
+## Navegação (Bottom Nav — 5 abas, Hoje no centro)
 - 📅 Calendário (`/calendario`) — ícone CalendarDays
-- 📚 Seções (`/secoes`) — ícone BookOpen
+- 📚 Seções (`/secoes`) — ícone LayoutGrid
+- 🏠 Hoje (`/`) — ícone Home (centro, destaque)
+- 📝 Notas (`/notas`) — ícone StickyNote
 - 📖 Instruções (`/instrucoes`) — ícone GraduationCap
 
 ---
@@ -150,12 +164,13 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 ## Arquivos Principais
 
 - `src/pages/Dashboard.tsx` — Dashboard com streak, progresso, marcadores
-- `src/pages/ReadingDayPage.tsx` — Checklist, vídeo, anotações, marcadores
+- `src/pages/ReadingDayPage.tsx` — Checklist, vídeo, anotações auto-save, marcadores
 - `src/pages/Sections.tsx` — Seções de marcador + seções de livros com +N
+- `src/pages/Notes.tsx` — Página de anotações com busca e filtros
 - `src/pages/Instructions.tsx` — Instruções com 🔸/🔹
 - `src/pages/Calendar.tsx` — Calendário 4 visões
 - `src/pages/Login.tsx` — Google OAuth + email/senha
-- `src/components/Layout.tsx` — Bottom nav (4 tabs)
+- `src/components/Layout.tsx` — Bottom nav (5 tabs, Hoje no centro)
 - `src/lib/reading-plan.ts` — Plano 366 dias, 12 seções, marcadores
 - `src/lib/jw-media.ts` — API de vídeos JW.ORG
 - `src/lib/push.ts` — Notificações push

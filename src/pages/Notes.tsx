@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getReadingForDay, sections } from '../lib/reading-plan'
-import { Search, StickyNote, ChevronRight, X } from 'lucide-react'
+import { Search, StickyNote, ChevronRight, X, ChevronDown } from 'lucide-react'
 
 interface NoteRow {
   id: string
@@ -17,6 +17,65 @@ interface EnrichedNote extends NoteRow {
   title: string
   sectionName: string
   sectionColor: string
+}
+
+function FilterDropdown({ label, options, value, onChange }: {
+  label: string
+  options: { value: string; label: string; color?: string }[]
+  value: string
+  onChange: (v: string) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const selected = options.find(o => o.value === value)
+
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        onClick={() => setOpen(!open)}
+        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs transition-colors ${
+          value ? 'bg-accent/15 text-accent border border-accent/30' : 'bg-bg-card text-text-muted border border-white/5 hover:border-white/10'
+        }`}
+      >
+        {selected?.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: selected.color }} />}
+        <span className="truncate max-w-[120px]">{selected?.label || label}</span>
+        <ChevronDown size={12} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 mt-1 w-56 max-h-64 overflow-y-auto bg-bg-card border border-white/10 rounded-xl shadow-lg shadow-black/40 z-50 py-1 scrollbar-hide">
+          <button
+            onClick={() => { onChange(''); setOpen(false) }}
+            className={`w-full text-left px-3 py-2 text-xs transition-colors ${
+              !value ? 'text-accent bg-accent/10' : 'text-text-muted hover:bg-bg-hover hover:text-text-primary'
+            }`}
+          >
+            {label}
+          </button>
+          {options.map(opt => (
+            <button
+              key={opt.value}
+              onClick={() => { onChange(opt.value); setOpen(false) }}
+              className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
+                value === opt.value ? 'text-accent bg-accent/10' : 'text-text-primary hover:bg-bg-hover'
+              }`}
+            >
+              {opt.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />}
+              <span className="truncate">{opt.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export default function Notes() {
@@ -58,6 +117,9 @@ export default function Notes() {
 
   const books = useMemo(() => [...new Set(notes.map(n => n.book).filter(Boolean))].sort(), [notes])
 
+  const sectionOptions = useMemo(() => sections.map(s => ({ value: s.name, label: s.name, color: s.color })), [])
+  const bookOptions = useMemo(() => books.map(b => ({ value: b, label: b })), [books])
+
   const filtered = useMemo(() => {
     let result = notes
     if (filterSection) {
@@ -77,7 +139,10 @@ export default function Notes() {
     return result
   }, [notes, filterSection, filterBook, search])
 
-  const activeFilters = filterSection || filterBook || search.trim()
+  const activeFilters: { key: string; label: string; onRemove: () => void }[] = []
+  if (filterSection) activeFilters.push({ key: 'section', label: filterSection, onRemove: () => setFilterSection('') })
+  if (filterBook) activeFilters.push({ key: 'book', label: filterBook, onRemove: () => setFilterBook('') })
+  if (search.trim()) activeFilters.push({ key: 'search', label: `"${search}"`, onRemove: () => setSearch('') })
 
   return (
     <div className="p-4 space-y-4 max-w-lg mx-auto pb-8 fade-in">
@@ -102,36 +167,39 @@ export default function Notes() {
         )}
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
-        <select
+      <div className="flex items-center gap-2">
+        <FilterDropdown
+          label="Seção"
+          options={sectionOptions}
           value={filterSection}
-          onChange={e => setFilterSection(e.target.value)}
-          className="shrink-0 bg-bg-card border border-white/5 rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent/30 appearance-none cursor-pointer"
-        >
-          <option value="">Todas as seções</option>
-          {sections.map(s => (
-            <option key={s.id} value={s.name}>{s.name}</option>
-          ))}
-        </select>
-        <select
+          onChange={setFilterSection}
+        />
+        <FilterDropdown
+          label="Livro"
+          options={bookOptions}
           value={filterBook}
-          onChange={e => setFilterBook(e.target.value)}
-          className="shrink-0 bg-bg-card border border-white/5 rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-accent/30 appearance-none cursor-pointer"
-        >
-          <option value="">Todos os livros</option>
-          {books.map(b => (
-            <option key={b} value={b}>{b}</option>
+          onChange={setFilterBook}
+        />
+      </div>
+
+      {activeFilters.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {activeFilters.map(f => (
+            <span key={f.key} className="inline-flex items-center gap-1 bg-accent/15 text-accent text-xs px-2.5 py-1 rounded-lg">
+              {f.label}
+              <button onClick={f.onRemove} className="hover:text-white transition-colors">
+                <X size={12} />
+              </button>
+            </span>
           ))}
-        </select>
-        {activeFilters && (
           <button
             onClick={() => { setFilterSection(''); setFilterBook(''); setSearch('') }}
-            className="shrink-0 px-3 py-2 text-xs text-red-400 hover:text-red-300 transition-colors"
+            className="text-xs text-text-muted hover:text-red-400 transition-colors px-1"
           >
-            Limpar filtros
+            Limpar tudo
           </button>
-        )}
-      </div>
+        </div>
+      )}
 
       {loading ? (
         <div className="space-y-3">
@@ -147,7 +215,7 @@ export default function Notes() {
         <div className="text-center py-16">
           <StickyNote size={40} className="text-text-muted mx-auto mb-3 opacity-40" />
           <p className="text-text-muted text-sm">
-            {activeFilters ? 'Nenhuma anotação encontrada com esses filtros' : 'Suas anotações aparecerão aqui conforme você for lendo'}
+            {activeFilters.length > 0 ? 'Nenhuma anotação encontrada com esses filtros' : 'Suas anotações aparecerão aqui conforme você for lendo'}
           </p>
         </div>
       ) : (
