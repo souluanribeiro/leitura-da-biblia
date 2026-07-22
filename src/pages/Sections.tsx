@@ -25,6 +25,7 @@ const markerSectionIds = new Set(['tratos-israel', 'congregacao-crista'])
 export default function Sections() {
   const navigate = useNavigate()
   const [completedDays, setCompletedDays] = useState<Set<number>>(new Set())
+  const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
     supabase.from('reading_progress').select('day_number').then(({ data }) => {
@@ -120,7 +121,7 @@ export default function Sections() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {days.slice(0, 20).map(d => {
+                {(expanded.has(section.id) ? days : days.slice(0, 20)).map(d => {
                   const isDone = completedDays.has(d.day)
                   return (
                     <button
@@ -138,10 +139,21 @@ export default function Sections() {
                     </button>
                   )
                 })}
-                {days.length > 20 && (
-                  <span className="text-xs text-text-muted flex items-center px-1">
+                {days.length > 20 && !expanded.has(section.id) && (
+                  <button
+                    onClick={() => setExpanded(prev => new Set(prev).add(section.id))}
+                    className="h-7 px-2 rounded-md text-xs flex items-center bg-bg-hover text-text-muted hover:text-text-primary transition-colors btn-ghost"
+                  >
                     +{days.length - 20}
-                  </span>
+                  </button>
+                )}
+                {expanded.has(section.id) && days.length > 20 && (
+                  <button
+                    onClick={() => setExpanded(prev => { const next = new Set(prev); next.delete(section.id); return next })}
+                    className="h-7 px-2 rounded-md text-xs flex items-center bg-bg-hover text-text-muted hover:text-text-primary transition-colors btn-ghost"
+                  >
+                    ▲ recolher
+                  </button>
                 )}
               </div>
             </div>
