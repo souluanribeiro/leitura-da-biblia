@@ -1,6 +1,8 @@
 import type { ReadingDay, Section } from '../types'
 
 export const sections: Section[] = [
+  { id: 'tratos-israel', name: '🔸Tratos de Deus com os Israelitas', color: '#f97316', icon: 'scroll' },
+  { id: 'congregacao-crista', name: '🔹Desenvolvimento da Congregação Cristã', color: '#3b82f6', icon: 'dove' },
   { id: 'moses', name: 'Escritos de Moisés', color: '#d4a853', icon: 'scroll' },
   { id: 'terra-prometida', name: 'Israel Entra na Terra Prometida', color: '#c0842f', icon: 'cookie' },
   { id: 'reis', name: 'Quando os Reis Governavam Israel', color: '#f59e0b', icon: 'crown' },
@@ -434,7 +436,16 @@ export function getReadingForDay(day: number): ReadingDay[] {
   return readingPlan.filter(d => d.day === day)
 }
 
+const markerSectionMap: Record<string, string> = {
+  'tratos-israel': O,
+  'congregacao-crista': B,
+}
+
 export function getDaysInSection(sectionId: string): ReadingDay[] {
+  const marker = markerSectionMap[sectionId]
+  if (marker !== undefined) {
+    return readingPlan.filter(d => d.marker === marker)
+  }
   return readingPlan.filter(d => d.section.id === sectionId)
 }
 

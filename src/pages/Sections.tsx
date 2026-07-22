@@ -62,29 +62,25 @@ export default function Sections() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {days.slice(0, 20).map(d => {
+                {days.map(d => {
                   const isDone = completedDays.has(d.day)
                   return (
                     <button
                       key={d.day}
                       onClick={() => navigate(`/ler/${d.day}`)}
-                      className={`w-7 h-7 rounded-md text-xs flex items-center justify-center transition-colors btn-ghost ${
+                      className={`h-7 px-1.5 rounded-md text-xs flex items-center gap-1 transition-colors btn-ghost ${
                         isDone
                           ? 'text-white'
                           : 'bg-bg-hover text-text-secondary hover:bg-accent/10'
                       }`}
                       style={isDone ? { backgroundColor: section.color } : {}}
-                      title={`Dia ${d.day}${isDone ? ' ✓' : ''}`}
+                      title={`${d.title}${isDone ? ' ✓' : ''}`}
                     >
-                      {d.day}
+                      {d.marker && <span className="text-[10px]">{d.marker}</span>}
+                      <span>{d.day}</span>
                     </button>
                   )
                 })}
-                {days.length > 20 && (
-                  <span className="text-xs text-text-muted flex items-center px-1">
-                    +{days.length - 20}
-                  </span>
-                )}
               </div>
             </div>
           </div>
