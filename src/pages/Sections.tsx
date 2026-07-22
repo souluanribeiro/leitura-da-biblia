@@ -141,7 +141,7 @@ export default function Sections() {
                 {days.length > 20 && !expanded.has(section.id) && (
                   <button
                     onClick={() => setExpanded(prev => new Set(prev).add(section.id))}
-                    className="h-7 px-2 rounded-md text-xs flex items-center bg-accent text-white hover:bg-accent/80 transition-colors"
+                    className="h-7 px-2 rounded-md text-xs font-bold flex items-center bg-accent text-white hover:bg-accent/80 transition-colors"
                   >
                     +{days.length - 20}
                   </button>
@@ -149,9 +149,9 @@ export default function Sections() {
                 {expanded.has(section.id) && days.length > 20 && (
                   <button
                     onClick={() => setExpanded(prev => { const next = new Set(prev); next.delete(section.id); return next })}
-                    className="h-7 px-2 rounded-md text-xs flex items-center bg-purple-600 text-white hover:bg-purple-500 transition-colors"
+                    className="h-7 px-2 rounded-md text-xs font-bold flex items-center bg-purple-600 text-white hover:bg-purple-500 transition-colors"
                   >
-                    mostrar menos
+                    recolher
                   </button>
                 )}
               </div>
