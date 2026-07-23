@@ -40,6 +40,7 @@ export default function Notes() {
   const [filterSection, setFilterSection] = useState('')
   const [filterBook, setFilterBook] = useState('')
   const [filterPeriod, setFilterPeriod] = useState('')
+  const [filterMonth, setFilterMonth] = useState('')
   const [showAllSections, setShowAllSections] = useState(false)
   const [showAllBooks, setShowAllBooks] = useState(false)
 
@@ -98,6 +99,13 @@ export default function Notes() {
       else if (filterPeriod === 'year') cutoff.setFullYear(now.getFullYear() - 1)
       result = result.filter(n => new Date(n.updated_at) >= cutoff)
     }
+    if (filterMonth) {
+      const [year, month] = filterMonth.split('-').map(Number)
+      result = result.filter(n => {
+        const d = new Date(n.updated_at)
+        return d.getFullYear() === year && d.getMonth() === month - 1
+      })
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(n =>
@@ -107,7 +115,7 @@ export default function Notes() {
       )
     }
     return result
-  }, [notes, filterSection, filterBook, filterPeriod, search])
+  }, [notes, filterSection, filterBook, filterPeriod, filterMonth, search])
 
   const sectionsWithCount = useMemo(() =>
     sections.map(s => ({
@@ -127,7 +135,7 @@ export default function Notes() {
   const visibleSections = showAllSections ? sectionsWithCount : sectionsWithCount.slice(0, INITIAL_SHOW)
   const visibleBooks = showAllBooks ? booksWithCount : booksWithCount.slice(0, INITIAL_SHOW)
 
-  const hasActive = filterSection || filterBook || filterPeriod || search.trim()
+  const hasActive = filterSection || filterBook || filterPeriod || filterMonth || search.trim()
 
   return (
     <div className="p-4 space-y-4 max-w-lg mx-auto pb-8 fade-in">
@@ -184,15 +192,37 @@ export default function Notes() {
               ].map(p => (
                 <button
                   key={p.value}
-                  onClick={() => setFilterPeriod(p.value)}
+                  onClick={() => { setFilterPeriod(p.value); setFilterMonth('') }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                    filterPeriod === p.value ? 'bg-accent text-white' : 'bg-bg-hover text-text-muted hover:text-text-primary'
+                    filterPeriod === p.value && !filterMonth ? 'bg-accent text-white' : 'bg-bg-hover text-text-muted hover:text-text-primary'
                   }`}
                 >
                   {p.label}
                 </button>
               ))}
             </div>
+            {filterPeriod === 'year' && (
+              <div className="mt-2 flex gap-1.5 flex-wrap">
+                {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'].map((m, i) => {
+                  const monthVal = `${new Date().getFullYear()}-${String(i + 1).padStart(2, '0')}`
+                  const count = notes.filter(n => {
+                    const d = new Date(n.updated_at)
+                    return d.getFullYear() === new Date().getFullYear() && d.getMonth() === i
+                  }).length
+                  return (
+                    <button
+                      key={monthVal}
+                      onClick={() => setFilterMonth(filterMonth === monthVal ? '' : monthVal)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                        filterMonth === monthVal ? 'bg-accent text-white' : 'bg-bg-hover text-text-muted hover:text-text-primary'
+                      }`}
+                    >
+                      {m} {count > 0 && <span className="opacity-70">({count})</span>}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
         </div>
 
@@ -226,40 +256,50 @@ export default function Notes() {
           </div>
         )}
 
-        {booksWithCount.length > 0 && (
-          <div className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden">
-            <div className="p-3">
-              <h3 className="text-xs font-medium text-text-muted mb-2">Livros</h3>
-              <div className="flex flex-wrap gap-1.5">
-                {visibleBooks.map(b => (
+        <div className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden">
+          <div className="p-3">
+            <h3 className="text-xs font-medium text-text-muted mb-2">Livros</h3>
+            {booksWithCount.length > 0 ? (
+              <>
+                <div className="flex flex-wrap gap-1.5">
+                  {visibleBooks.map(b => (
+                    <button
+                      key={b.name}
+                      onClick={() => setFilterBook(filterBook === b.name ? '' : b.name)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                        filterBook === b.name ? 'bg-purple-600 text-white' : 'bg-bg-hover text-text-muted hover:text-text-primary'
+                      }`}
+                    >
+                      {b.name} <span className="opacity-70">({b.count})</span>
+                    </button>
+                  ))}
+                </div>
+                {booksWithCount.length > INITIAL_SHOW && (
                   <button
-                    key={b.name}
-                    onClick={() => setFilterBook(filterBook === b.name ? '' : b.name)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                      filterBook === b.name ? 'bg-purple-600 text-white' : 'bg-bg-hover text-text-muted hover:text-text-primary'
-                    }`}
+                    onClick={() => setShowAllBooks(!showAllBooks)}
+                    className="mt-2 text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors"
                   >
-                    {b.name} <span className="opacity-70">({b.count})</span>
+                    {showAllBooks ? 'recolher' : `+${booksWithCount.length - INITIAL_SHOW} mais`}
                   </button>
-                ))}
-              </div>
-              {booksWithCount.length > INITIAL_SHOW && (
-                <button
-                  onClick={() => setShowAllBooks(!showAllBooks)}
-                  className="mt-2 text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors"
-                >
-                  {showAllBooks ? 'recolher' : `+${booksWithCount.length - INITIAL_SHOW} mais`}
-                </button>
-              )}
-            </div>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-text-muted">Nenhuma anotação com livro ainda</p>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
       {hasActive && (
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-xs text-text-muted">Filtrando:</span>
-          {filterPeriod && (
+          {filterMonth && (
+            <span className="inline-flex items-center gap-1 bg-accent/15 text-accent text-xs px-2 py-0.5 rounded-md">
+              {['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'][parseInt(filterMonth.split('-')[1]) - 1]}
+              <button onClick={() => setFilterMonth('')} className="hover:opacity-70"><X size={10} /></button>
+            </span>
+          )}
+          {filterPeriod && !filterMonth && (
             <span className="inline-flex items-center gap-1 bg-accent/15 text-accent text-xs px-2 py-0.5 rounded-md">
               {filterPeriod === 'day' ? 'Hoje' : filterPeriod === 'week' ? 'Esta semana' : filterPeriod === 'month' ? 'Este mês' : 'Este ano'}
               <button onClick={() => setFilterPeriod('')} className="hover:opacity-70"><X size={10} /></button>
@@ -285,7 +325,7 @@ export default function Notes() {
             </span>
           )}
           <button
-            onClick={() => { setFilterSection(''); setFilterBook(''); setFilterPeriod(''); setSearch('') }}
+            onClick={() => { setFilterSection(''); setFilterBook(''); setFilterPeriod(''); setFilterMonth(''); setSearch('') }}
             className="text-xs text-text-muted hover:text-red-400 transition-colors"
           >
             Limpar tudo
