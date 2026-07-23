@@ -2,7 +2,7 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getReadingForDay, sections } from '../lib/reading-plan'
-import { Search, StickyNote, ChevronRight, X, BookOpen, CalendarDays, Layers } from 'lucide-react'
+import { Search, StickyNote, ChevronRight, X, BookOpen, CalendarDays, ChevronDown } from 'lucide-react'
 
 interface NoteRow {
   id: string
@@ -30,12 +30,18 @@ function daysAgo(dateStr: string): string {
   return `há ${Math.floor(diff / 30)} mês`
 }
 
+const INITIAL_SHOW = 5
+
 export default function Notes() {
   const navigate = useNavigate()
   const [notes, setNotes] = useState<EnrichedNote[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterSection, setFilterSection] = useState('')
+  const [filterBook, setFilterBook] = useState('')
+  const [filterPeriod, setFilterPeriod] = useState('')
+  const [showAllSections, setShowAllSections] = useState(false)
+  const [showAllBooks, setShowAllBooks] = useState(false)
 
   useEffect(() => { loadNotes() }, [])
 
@@ -82,6 +88,16 @@ export default function Notes() {
   const filtered = useMemo(() => {
     let result = notes
     if (filterSection) result = result.filter(n => n.sectionName === filterSection)
+    if (filterBook) result = result.filter(n => n.book === filterBook)
+    if (filterPeriod) {
+      const now = new Date()
+      const cutoff = new Date()
+      if (filterPeriod === 'day') cutoff.setDate(now.getDate() - 1)
+      else if (filterPeriod === 'week') cutoff.setDate(now.getDate() - 7)
+      else if (filterPeriod === 'month') cutoff.setMonth(now.getMonth() - 1)
+      else if (filterPeriod === 'year') cutoff.setFullYear(now.getFullYear() - 1)
+      result = result.filter(n => new Date(n.updated_at) >= cutoff)
+    }
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(n =>
@@ -91,7 +107,27 @@ export default function Notes() {
       )
     }
     return result
-  }, [notes, filterSection, search])
+  }, [notes, filterSection, filterBook, filterPeriod, search])
+
+  const sectionsWithCount = useMemo(() =>
+    sections.map(s => ({
+      ...s,
+      count: notes.filter(n => n.sectionName === s.name).length,
+    })).filter(s => s.count > 0),
+  [notes, sections])
+
+  const booksWithCount = useMemo(() => {
+    const counts: Record<string, number> = {}
+    notes.forEach(n => { if (n.book) counts[n.book] = (counts[n.book] || 0) + 1 })
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [notes])
+
+  const visibleSections = showAllSections ? sectionsWithCount : sectionsWithCount.slice(0, INITIAL_SHOW)
+  const visibleBooks = showAllBooks ? booksWithCount : booksWithCount.slice(0, INITIAL_SHOW)
+
+  const hasActive = filterSection || filterBook || filterPeriod || search.trim()
 
   return (
     <div className="p-4 space-y-4 max-w-lg mx-auto pb-8 fade-in">
@@ -134,54 +170,126 @@ export default function Notes() {
         )}
       </div>
 
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-        <button
-          onClick={() => setFilterSection('')}
-          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            !filterSection ? 'bg-accent text-white' : 'bg-bg-card text-text-muted border border-white/5 hover:border-white/10'
-          }`}
-        >
-          Todas
-        </button>
-        {sections.map(s => {
-          const count = notes.filter(n => n.sectionName === s.name).length
-          return (
-            <button
-              key={s.id}
-              onClick={() => setFilterSection(filterSection === s.name ? '' : s.name)}
-              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                filterSection === s.name ? 'text-white' : 'text-white/80'
-              }`}
-              style={{
-                backgroundColor: filterSection === s.name ? s.color : `${s.color}33`,
-              }}
-            >
-              {s.name} {count > 0 && <span className="opacity-70">({count})</span>}
-            </button>
-          )
-        })}
+      <div className="space-y-2">
+        <div className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden">
+          <div className="p-3">
+            <h3 className="text-xs font-medium text-text-muted mb-2">Período</h3>
+            <div className="flex gap-1.5 flex-wrap">
+              {[
+                { value: '', label: 'Todas' },
+                { value: 'day', label: 'Hoje' },
+                { value: 'week', label: 'Esta semana' },
+                { value: 'month', label: 'Este mês' },
+                { value: 'year', label: 'Este ano' },
+              ].map(p => (
+                <button
+                  key={p.value}
+                  onClick={() => setFilterPeriod(p.value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    filterPeriod === p.value ? 'bg-accent text-white' : 'bg-bg-hover text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {sectionsWithCount.length > 0 && (
+          <div className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden">
+            <div className="p-3">
+              <h3 className="text-xs font-medium text-text-muted mb-2">Seções</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {visibleSections.map(s => (
+                  <button
+                    key={s.id}
+                    onClick={() => setFilterSection(filterSection === s.name ? '' : s.name)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-colors"
+                    style={{
+                      backgroundColor: filterSection === s.name ? s.color : `${s.color}55`,
+                    }}
+                  >
+                    {s.name} <span className="opacity-70">({s.count})</span>
+                  </button>
+                ))}
+              </div>
+              {sectionsWithCount.length > INITIAL_SHOW && (
+                <button
+                  onClick={() => setShowAllSections(!showAllSections)}
+                  className="mt-2 text-xs font-bold text-accent hover:text-accent-light transition-colors"
+                >
+                  {showAllSections ? 'recolher' : `+${sectionsWithCount.length - INITIAL_SHOW} mais`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {booksWithCount.length > 0 && (
+          <div className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden">
+            <div className="p-3">
+              <h3 className="text-xs font-medium text-text-muted mb-2">Livros</h3>
+              <div className="flex flex-wrap gap-1.5">
+                {visibleBooks.map(b => (
+                  <button
+                    key={b.name}
+                    onClick={() => setFilterBook(filterBook === b.name ? '' : b.name)}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                      filterBook === b.name ? 'bg-purple-600 text-white' : 'bg-bg-hover text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    {b.name} <span className="opacity-70">({b.count})</span>
+                  </button>
+                ))}
+              </div>
+              {booksWithCount.length > INITIAL_SHOW && (
+                <button
+                  onClick={() => setShowAllBooks(!showAllBooks)}
+                  className="mt-2 text-xs font-bold text-purple-400 hover:text-purple-300 transition-colors"
+                >
+                  {showAllBooks ? 'recolher' : `+${booksWithCount.length - INITIAL_SHOW} mais`}
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {filterSection && (
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-text-muted">Filtrando por:</span>
-          <span
-            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md text-white"
-            style={{ backgroundColor: sections.find(s => s.name === filterSection)?.color || '#888' }}
-          >
-            {filterSection}
-            <button onClick={() => setFilterSection('')} className="hover:opacity-70 transition-opacity">
-              <X size={10} />
-            </button>
-          </span>
-          {search.trim() && (
+      {hasActive && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-xs text-text-muted">Filtrando:</span>
+          {filterPeriod && (
             <span className="inline-flex items-center gap-1 bg-accent/15 text-accent text-xs px-2 py-0.5 rounded-md">
-              "{search}"
-              <button onClick={() => setSearch('')} className="hover:opacity-70 transition-opacity">
-                <X size={10} />
-              </button>
+              {filterPeriod === 'day' ? 'Hoje' : filterPeriod === 'week' ? 'Esta semana' : filterPeriod === 'month' ? 'Este mês' : 'Este ano'}
+              <button onClick={() => setFilterPeriod('')} className="hover:opacity-70"><X size={10} /></button>
             </span>
           )}
+          {filterSection && (
+            <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md text-white"
+              style={{ backgroundColor: sections.find(s => s.name === filterSection)?.color || '#888' }}>
+              {filterSection}
+              <button onClick={() => setFilterSection('')} className="hover:opacity-70"><X size={10} /></button>
+            </span>
+          )}
+          {filterBook && (
+            <span className="inline-flex items-center gap-1 bg-purple-600/30 text-purple-300 text-xs px-2 py-0.5 rounded-md">
+              {filterBook}
+              <button onClick={() => setFilterBook('')} className="hover:opacity-70"><X size={10} /></button>
+            </span>
+          )}
+          {search.trim() && (
+            <span className="inline-flex items-center gap-1 bg-white/5 text-text-muted text-xs px-2 py-0.5 rounded-md">
+              "{search}"
+              <button onClick={() => setSearch('')} className="hover:opacity-70"><X size={10} /></button>
+            </span>
+          )}
+          <button
+            onClick={() => { setFilterSection(''); setFilterBook(''); setFilterPeriod(''); setSearch('') }}
+            className="text-xs text-text-muted hover:text-red-400 transition-colors"
+          >
+            Limpar tudo
+          </button>
         </div>
       )}
 
@@ -199,7 +307,7 @@ export default function Notes() {
         <div className="text-center py-16">
           <StickyNote size={40} className="text-text-muted mx-auto mb-3 opacity-40" />
           <p className="text-text-muted text-sm">
-            {filterSection || search.trim() ? 'Nenhuma anotação encontrada' : 'Suas anotações aparecerão aqui conforme você for lendo'}
+            {hasActive ? 'Nenhuma anotação encontrada' : 'Suas anotações aparecerão aqui conforme você for lendo'}
           </p>
         </div>
       ) : (
