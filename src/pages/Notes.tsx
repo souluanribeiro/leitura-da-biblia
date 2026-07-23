@@ -1,8 +1,8 @@
-import { useEffect, useState, useMemo, useRef } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getReadingForDay, sections } from '../lib/reading-plan'
-import { Search, StickyNote, ChevronRight, X, ChevronDown } from 'lucide-react'
+import { Search, StickyNote, ChevronRight, X, BookOpen, CalendarDays, Layers } from 'lucide-react'
 
 interface NoteRow {
   id: string
@@ -19,63 +19,15 @@ interface EnrichedNote extends NoteRow {
   sectionColor: string
 }
 
-function FilterDropdown({ label, options, value, onChange }: {
-  label: string
-  options: { value: string; label: string; color?: string }[]
-  value: string
-  onChange: (v: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
-  const selected = options.find(o => o.value === value)
-
-  return (
-    <div ref={ref} className="relative shrink-0">
-      <button
-        onClick={() => setOpen(!open)}
-        className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs transition-colors ${
-          value ? 'bg-accent/15 text-accent border border-accent/30' : 'bg-bg-card text-text-muted border border-white/5 hover:border-white/10'
-        }`}
-      >
-        {selected?.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: selected.color }} />}
-        <span className="truncate max-w-[120px]">{selected?.label || label}</span>
-        <ChevronDown size={12} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
-      </button>
-      {open && (
-        <div className="absolute top-full left-0 mt-1 w-56 max-h-64 overflow-y-auto bg-bg-card border border-white/10 rounded-xl shadow-lg shadow-black/40 z-50 py-1 scrollbar-hide">
-          <button
-            onClick={() => { onChange(''); setOpen(false) }}
-            className={`w-full text-left px-3 py-2 text-xs transition-colors ${
-              !value ? 'text-accent bg-accent/10' : 'text-text-muted hover:bg-bg-hover hover:text-text-primary'
-            }`}
-          >
-            {label}
-          </button>
-          {options.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => { onChange(opt.value); setOpen(false) }}
-              className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center gap-2 ${
-                value === opt.value ? 'text-accent bg-accent/10' : 'text-text-primary hover:bg-bg-hover'
-              }`}
-            >
-              {opt.color && <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: opt.color }} />}
-              <span className="truncate">{opt.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
+function daysAgo(dateStr: string): string {
+  const now = new Date()
+  const d = new Date(dateStr)
+  const diff = Math.floor((now.getTime() - d.getTime()) / 86400000)
+  if (diff === 0) return 'hoje'
+  if (diff === 1) return 'ontem'
+  if (diff < 7) return `há ${diff} dias`
+  if (diff < 30) return `há ${Math.floor(diff / 7)} sem`
+  return `há ${Math.floor(diff / 30)} mês`
 }
 
 export default function Notes() {
@@ -84,11 +36,8 @@ export default function Notes() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [filterSection, setFilterSection] = useState('')
-  const [filterBook, setFilterBook] = useState('')
 
-  useEffect(() => {
-    loadNotes()
-  }, [])
+  useEffect(() => { loadNotes() }, [])
 
   const loadNotes = async () => {
     const user = (await supabase.auth.getUser()).data.user
@@ -117,17 +66,22 @@ export default function Notes() {
 
   const books = useMemo(() => [...new Set(notes.map(n => n.book).filter(Boolean))].sort(), [notes])
 
-  const sectionOptions = useMemo(() => sections.map(s => ({ value: s.name, label: s.name, color: s.color })), [])
-  const bookOptions = useMemo(() => books.map(b => ({ value: b, label: b })), [books])
+  const notesThisWeek = useMemo(() => {
+    const weekAgo = new Date()
+    weekAgo.setDate(weekAgo.getDate() - 7)
+    return notes.filter(n => new Date(n.updated_at) >= weekAgo).length
+  }, [notes])
+
+  const topBook = useMemo(() => {
+    if (books.length === 0) return '—'
+    const counts: Record<string, number> = {}
+    notes.forEach(n => { if (n.book) counts[n.book] = (counts[n.book] || 0) + 1 })
+    return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || '—'
+  }, [notes, books])
 
   const filtered = useMemo(() => {
     let result = notes
-    if (filterSection) {
-      result = result.filter(n => n.sectionName === filterSection)
-    }
-    if (filterBook) {
-      result = result.filter(n => n.book === filterBook)
-    }
+    if (filterSection) result = result.filter(n => n.sectionName === filterSection)
     if (search.trim()) {
       const q = search.toLowerCase()
       result = result.filter(n =>
@@ -137,18 +91,31 @@ export default function Notes() {
       )
     }
     return result
-  }, [notes, filterSection, filterBook, search])
-
-  const activeFilters: { key: string; label: string; onRemove: () => void }[] = []
-  if (filterSection) activeFilters.push({ key: 'section', label: filterSection, onRemove: () => setFilterSection('') })
-  if (filterBook) activeFilters.push({ key: 'book', label: filterBook, onRemove: () => setFilterBook('') })
-  if (search.trim()) activeFilters.push({ key: 'search', label: `"${search}"`, onRemove: () => setSearch('') })
+  }, [notes, filterSection, search])
 
   return (
     <div className="p-4 space-y-4 max-w-lg mx-auto pb-8 fade-in">
       <div className="flex items-center justify-between">
         <h1 className="text-lg font-bold text-text-primary">Suas Anotações</h1>
         <span className="text-xs text-text-muted">{notes.length} {notes.length === 1 ? 'nota' : 'notas'}</span>
+      </div>
+
+      <div className="grid grid-cols-3 gap-3">
+        <div className="bg-bg-card rounded-2xl border border-white/5 p-3 text-center">
+          <StickyNote size={18} className="text-accent mx-auto mb-1.5" />
+          <div className="text-xl font-bold text-text-primary">{notes.length}</div>
+          <div className="text-[10px] text-text-muted mt-0.5">total</div>
+        </div>
+        <div className="bg-bg-card rounded-2xl border border-white/5 p-3 text-center">
+          <CalendarDays size={18} className="text-green-400 mx-auto mb-1.5" />
+          <div className="text-xl font-bold text-text-primary">{notesThisWeek}</div>
+          <div className="text-[10px] text-text-muted mt-0.5">esta semana</div>
+        </div>
+        <div className="bg-bg-card rounded-2xl border border-white/5 p-3 text-center">
+          <BookOpen size={18} className="text-purple-400 mx-auto mb-1.5" />
+          <div className="text-sm font-bold text-text-primary truncate">{topBook}</div>
+          <div className="text-[10px] text-text-muted mt-0.5">mais anotado</div>
+        </div>
       </div>
 
       <div className="relative">
@@ -167,37 +134,54 @@ export default function Notes() {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
-        <FilterDropdown
-          label="Seção"
-          options={sectionOptions}
-          value={filterSection}
-          onChange={setFilterSection}
-        />
-        <FilterDropdown
-          label="Livro"
-          options={bookOptions}
-          value={filterBook}
-          onChange={setFilterBook}
-        />
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+        <button
+          onClick={() => setFilterSection('')}
+          className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+            !filterSection ? 'bg-accent text-white' : 'bg-bg-card text-text-muted border border-white/5 hover:border-white/10'
+          }`}
+        >
+          Todas
+        </button>
+        {sections.map(s => {
+          const count = notes.filter(n => n.sectionName === s.name).length
+          return (
+            <button
+              key={s.id}
+              onClick={() => setFilterSection(filterSection === s.name ? '' : s.name)}
+              className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                filterSection === s.name ? 'text-white' : 'text-white/80'
+              }`}
+              style={{
+                backgroundColor: filterSection === s.name ? s.color : `${s.color}33`,
+              }}
+            >
+              {s.name} {count > 0 && <span className="opacity-70">({count})</span>}
+            </button>
+          )
+        })}
       </div>
 
-      {activeFilters.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {activeFilters.map(f => (
-            <span key={f.key} className="inline-flex items-center gap-1 bg-accent/15 text-accent text-xs px-2.5 py-1 rounded-lg">
-              {f.label}
-              <button onClick={f.onRemove} className="hover:text-white transition-colors">
-                <X size={12} />
+      {filterSection && (
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-text-muted">Filtrando por:</span>
+          <span
+            className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-md text-white"
+            style={{ backgroundColor: sections.find(s => s.name === filterSection)?.color || '#888' }}
+          >
+            {filterSection}
+            <button onClick={() => setFilterSection('')} className="hover:opacity-70 transition-opacity">
+              <X size={10} />
+            </button>
+          </span>
+          {search.trim() && (
+            <span className="inline-flex items-center gap-1 bg-accent/15 text-accent text-xs px-2 py-0.5 rounded-md">
+              "{search}"
+              <button onClick={() => setSearch('')} className="hover:opacity-70 transition-opacity">
+                <X size={10} />
               </button>
             </span>
-          ))}
-          <button
-            onClick={() => { setFilterSection(''); setFilterBook(''); setSearch('') }}
-            className="text-xs text-text-muted hover:text-red-400 transition-colors px-1"
-          >
-            Limpar tudo
-          </button>
+          )}
         </div>
       )}
 
@@ -215,7 +199,7 @@ export default function Notes() {
         <div className="text-center py-16">
           <StickyNote size={40} className="text-text-muted mx-auto mb-3 opacity-40" />
           <p className="text-text-muted text-sm">
-            {activeFilters.length > 0 ? 'Nenhuma anotação encontrada com esses filtros' : 'Suas anotações aparecerão aqui conforme você for lendo'}
+            {filterSection || search.trim() ? 'Nenhuma anotação encontrada' : 'Suas anotações aparecerão aqui conforme você for lendo'}
           </p>
         </div>
       ) : (
@@ -224,18 +208,20 @@ export default function Notes() {
             <button
               key={note.id}
               onClick={() => navigate(`/ler/${note.day_number}`)}
-              className="w-full text-left bg-bg-card rounded-2xl border border-white/5 p-4 hover:bg-bg-hover transition-colors card"
+              className="w-full text-left bg-bg-card rounded-2xl border border-white/5 overflow-hidden hover:bg-bg-hover transition-colors card"
             >
-              <div className="flex items-center justify-between mb-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: note.sectionColor }} />
+              <div className="h-1.5" style={{ backgroundColor: note.sectionColor }} />
+              <div className="p-4">
+                <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-text-muted">Dia {note.day_number}</span>
+                  <span className="text-[10px] text-text-muted">{daysAgo(note.updated_at)}</span>
                 </div>
-                <ChevronRight size={14} className="text-text-muted shrink-0" />
+                <h3 className="font-medium text-text-primary text-sm mb-1">{note.title}</h3>
+                <p className="text-xs mb-2 px-2 py-0.5 rounded-md inline-block text-white/90" style={{ backgroundColor: `${note.sectionColor}cc` }}>
+                  {note.sectionName}
+                </p>
+                <p className="text-sm text-text-secondary line-clamp-2 mt-2">{note.content}</p>
               </div>
-              <h3 className="font-medium text-text-primary text-sm mb-1">{note.title}</h3>
-              <p className="text-xs text-text-muted mb-2">{note.sectionName}</p>
-              <p className="text-sm text-text-secondary line-clamp-3">{note.content}</p>
             </button>
           ))}
         </div>
