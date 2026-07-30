@@ -52,6 +52,8 @@ export async function subscribeToPush(preferredHour: number): Promise<boolean> {
   const user = (await supabase.auth.getUser()).data.user
   if (!user) return false
 
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+
   const { error } = await supabase.from('push_subscriptions').upsert(
     {
       user_id: user.id,
@@ -59,6 +61,7 @@ export async function subscribeToPush(preferredHour: number): Promise<boolean> {
       p256dh,
       auth: authStr,
       preferred_hour: preferredHour,
+      timezone,
       active: true,
     },
     { onConflict: 'user_id,endpoint' }

@@ -3,3 +3,4 @@ id = "lbgztfqgzjmiwvcghnki"
 
 [functions]
 send-daily-reminder = { verify_jwt = false }
+bible-agent = { verify_jwt = true }

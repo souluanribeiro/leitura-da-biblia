@@ -27,6 +27,72 @@ export default function Instructions() {
           </div>
         </div>
       </div>
+
+      <div className="space-y-3">
+        <a
+          href="https://www.jw.org/pt/biblioteca/videos/#pt/mediaitems/SeriesBibleTeachings/pub-ebtv_13_VIDEO"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-white font-semibold py-3 px-4 rounded-xl text-sm text-center transition-colors"
+          style={{ backgroundColor: '#00A2FF' }}
+        >
+          Como Ler a Bíblia
+        </a>
+        <a
+          href="https://www.jw.org/pt/ensinos-biblicos/jovens/animacoes-no-quadro-branco/biblia-pode-ajudar-voce/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-white font-semibold py-3 px-4 rounded-xl text-sm text-center transition-colors"
+          style={{ backgroundColor: '#FA15A6' }}
+        >
+          A Bíblia pode ajudar você?
+        </a>
+        <a
+          href="https://www.jw.org/pt/biblioteca/revistas/sentinela-estudo-outubro-2025/O-que-fazer-para-conseguir-ler-a-B%C3%ADblia-todos-os-dias/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-white font-semibold py-3 px-4 rounded-xl text-sm text-center transition-colors"
+          style={{ backgroundColor: '#8F71FF' }}
+        >
+          O que fazer para conseguir ler a Bíblia todos os dias?
+        </a>
+        <a
+          href="https://www.jw.org/pt/ensinos-biblicos/jovens/que-outros-jovens-dizem/ler-biblia/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-white font-semibold py-3 px-4 rounded-xl text-sm text-center transition-colors"
+          style={{ backgroundColor: '#FF6F61' }}
+        >
+          Por que alguns jovens gostam de ler a Bíblia
+        </a>
+        <a
+          href="https://www.jw.org/pt/ensinos-biblicos/jovens/perguntam/como-biblia-pode-ajudar-parte-1-conheca/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-white font-semibold py-3 px-4 rounded-xl text-sm text-center transition-colors"
+          style={{ backgroundColor: '#FF5C00' }}
+        >
+          Conheça melhor sua Bíblia
+        </a>
+        <a
+          href="https://www.jw.org/pt/ensinos-biblicos/jovens/perguntam/como-biblia-pode-me-ajudar-parte-2-interessante/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-white font-semibold py-3 px-4 rounded-xl text-sm text-center transition-colors"
+          style={{ backgroundColor: '#FFAC1B' }}
+        >
+          Deixe a leitura da Bíblia mais interessante
+        </a>
+        <a
+          href="https://www.jw.org/pt/ensinos-biblicos/jovens/perguntam/como-biblia-pode-me-ajudar-parte-3-aproveitar/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-white font-semibold py-3 px-4 rounded-xl text-sm text-center transition-colors"
+          style={{ backgroundColor: '#008F39' }}
+        >
+          Aproveite o máximo a sua leitura da Bíblia
+        </a>
+      </div>
     </div>
   )
 }

@@ -2,13 +2,13 @@ import { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { getReadingForDay, sections } from '../lib/reading-plan'
-import { Search, StickyNote, ChevronRight, X, BookOpen, CalendarDays, ChevronDown } from 'lucide-react'
+import { Search, StickyNote, X, BookOpen, CalendarDays, Trash2, Share2 } from 'lucide-react'
+import { shareContent } from '../lib/share'
 
 interface NoteRow {
   id: string
   day_number: number
   content: string
-  created_at: string
   updated_at: string
 }
 
@@ -27,7 +27,7 @@ function daysAgo(dateStr: string): string {
   if (diff === 1) return 'ontem'
   if (diff < 7) return `há ${diff} dias`
   if (diff < 30) return `há ${Math.floor(diff / 7)} sem`
-  return `há ${Math.floor(diff / 30)} mês`
+  return `há ${Math.floor(diff / 30)} meses`
 }
 
 const INITIAL_SHOW = 5
@@ -51,7 +51,7 @@ export default function Notes() {
     if (!user) { setLoading(false); return }
     const { data } = await supabase
       .from('notes')
-      .select('id, day_number, content, created_at, updated_at')
+      .select('id, day_number, content, updated_at')
       .eq('user_id', user.id)
       .order('day_number', { ascending: false })
     if (data) {
@@ -136,6 +136,13 @@ export default function Notes() {
   const visibleBooks = showAllBooks ? booksWithCount : booksWithCount.slice(0, INITIAL_SHOW)
 
   const hasActive = filterSection || filterBook || filterPeriod || filterMonth || search.trim()
+
+  const deleteNote = async (e: React.MouseEvent, noteId: string) => {
+    e.stopPropagation()
+    if (!confirm('Excluir esta anotação?')) return
+    await supabase.from('notes').delete().eq('id', noteId)
+    setNotes(prev => prev.filter(n => n.id !== noteId))
+  }
 
   return (
     <div className="p-4 space-y-4 max-w-lg mx-auto pb-8 fade-in">
@@ -362,7 +369,27 @@ export default function Notes() {
               <div className="p-4">
                 <div className="flex items-center justify-between mb-1.5">
                   <span className="text-xs text-text-muted">Dia {note.day_number}</span>
-                  <span className="text-[10px] text-text-muted">{daysAgo(note.updated_at)}</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[10px] text-text-muted">{daysAgo(note.updated_at)}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        shareContent(
+                          `Minha anotação — Dia ${note.day_number}`,
+                          `📝 ${note.title}\n\n"${note.content}"\n\n📖 Leitura da Bíblia em 1 Ano`
+                        )
+                      }}
+                      className="text-text-muted hover:text-accent transition-colors p-0.5"
+                    >
+                      <Share2 size={12} />
+                    </button>
+                    <button
+                      onClick={(e) => deleteNote(e, note.id)}
+                      className="text-text-muted hover:text-red-400 transition-colors p-0.5"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
                 </div>
                 <h3 className="font-medium text-text-primary text-sm mb-1">{note.title}</h3>
                 <p className="text-xs mb-2 px-2 py-0.5 rounded-md inline-block text-white/90" style={{ backgroundColor: `${note.sectionColor}cc` }}>

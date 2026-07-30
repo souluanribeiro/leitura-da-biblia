@@ -426,6 +426,12 @@ export const readingPlan: ReadingDay[] = _rawPlan.map(e => ({
 }))
 
 export function getNextUncompletedDay(completedDays: Set<number>): number {
+  const today = getTodayReadingDay()
+  if (today) {
+    for (let d = today; d <= today + 366; d++) {
+      if (!completedDays.has(d)) return d
+    }
+  }
   for (let d = 1; d <= 366; d++) {
     if (!completedDays.has(d)) return d
   }
@@ -433,7 +439,12 @@ export function getNextUncompletedDay(completedDays: Set<number>): number {
 }
 
 export function getReadingForDay(day: number): ReadingDay[] {
-  return readingPlan.filter(d => d.day === day)
+  const planDay = ((day - 1) % 366) + 1
+  return readingPlan.filter(d => d.day === planDay)
+}
+
+export function getReadingYear(day: number): number {
+  return Math.floor((day - 1) / 366) + 1
 }
 
 const markerSectionMap: Record<string, string> = {
@@ -506,7 +517,7 @@ export function getReadingDayForDate(date: Date): number | null {
   target.setHours(0, 0, 0, 0)
   const diffDays = Math.floor((target.getTime() - start.getTime()) / 86400000)
   const day = diffDays + 1
-  return day >= 1 && day <= 366 ? day : null
+  return day >= 1 ? day : null
 }
 
 export function getDateForReadingDay(day: number): Date | null {
@@ -520,4 +531,119 @@ export function getDateForReadingDay(day: number): Date | null {
 
 export function getTodayReadingDay(): number | null {
   return getReadingDayForDate(new Date())
+}
+
+export function getChaptersList(chapters: string): number[] {
+  const clean = chapters.replace(/\s/g, '')
+  const parts = clean.split(/[–-]/)
+  let startStr = parts[0]
+  if (startStr.includes(':')) startStr = startStr.split(':')[0]
+  const endStr = parts[1] ? (parts[1].includes(':') ? parts[1].split(':')[0] : parts[1]) : startStr
+  const start = parseInt(startStr)
+  const end = parseInt(endStr)
+  if (isNaN(start)) return []
+  const list: number[] = []
+  for (let i = start; i <= end; i++) list.push(i)
+  return list
+}
+
+export function checkedChaptersStorageKey(day: number): string {
+  return `checked_${day}`
+}
+
+export function buildAllCheckedChapters(readings: { chapters: string }[]): Record<string, boolean> {
+  const allChecked: Record<string, boolean> = {}
+  readings.forEach((r, i) => {
+    getChaptersList(r.chapters).forEach(ch => {
+      allChecked[`${i}-${ch}`] = true
+    })
+  })
+  return allChecked
+}
+
+export function saveCheckedChapters(day: number, checked: Record<string, boolean>): void {
+  localStorage.setItem(checkedChaptersStorageKey(day), JSON.stringify(checked))
+}
+
+export function calcStreak(completedDays: Set<number>): number {
+  const today = getTodayReadingDay()
+  if (!today) return 0
+  let streak = 0
+  for (let d = today; d >= 1; d--) {
+    if (completedDays.has(d)) streak++
+    else break
+  }
+  return streak
+}
+
+export function searchReadingPlan(query: string): ReadingDay[] {
+  const q = query.toLowerCase().trim()
+  if (!q) return []
+  return readingPlan.filter(d =>
+    d.book.toLowerCase().includes(q) ||
+    d.title.toLowerCase().includes(q) ||
+    String(d.day).includes(q)
+  ).slice(0, 20)
+}
+
+export interface Schedule {
+  id: string
+  name: string
+  description: string
+}
+
+export const schedules: Schedule[] = [
+  { id: 'full', name: 'Bíblia em 1 Ano', description: 'Plano completo com 366 dias' },
+  { id: 'tratos-israel', name: 'Tratos de Deus com os Israelitas', description: 'Gênesis a Deuteronômio — os dealeres de Deus com Seu povo' },
+  { id: 'congregacao-crista', name: 'Desenvolvimento da Congregação Cristã', description: 'Atos a Apocalipse — o crescimento da igreja primitiva' },
+  { id: 'moses', name: 'Escritos de Moisés', description: 'Gênesis, Êxodo, Levítico, Números e Deuteronômio' },
+  { id: 'terra-prometida', name: 'Israel Entra na Terra Prometida', description: 'Josué a Juízes — a conquista e posse da terra' },
+  { id: 'reis', name: 'Quando os Reis Governavam Israel', description: '1 Samuel a 2 Crônicas — os reis de Israel e Judá' },
+  { id: 'exilio', name: 'Os Judeus Retornam do Exílio', description: 'Esdras a Ester — o retorno do cativeiro babilônico' },
+  { id: 'cantico-sabedoria', name: 'Cânticos e Sabedoria Prática', description: 'Jó a Cantares — poesia, sabedoria e adoração' },
+  { id: 'profetas', name: 'Os Profetas', description: 'Isaías a Malaquias — as mensagens dos profetas' },
+  { id: 'jesus', name: 'Relatos da Vida de Jesus', description: 'Mateus, Marcos, Lucas e João' },
+  { id: 'congregacao', name: 'Crescimento da Congregação', description: 'Atos — o nascimento e crescimento da igreja' },
+  { id: 'cartas-paulo', name: 'As Cartas de Paulo', description: 'Romanos a Filemom — as epístolas paulinas' },
+  { id: 'outros-apostolos', name: 'Escritos de Outros Apóstolos', description: 'Hebreus a Judas — cartas dos demais apóstolos' },
+]
+
+export function getScheduleDays(scheduleId: string): number[] {
+  if (scheduleId === 'full') {
+    return Array.from({ length: 366 }, (_, i) => i + 1)
+  }
+  if (scheduleId === 'tratos-israel') {
+    return [...new Set(readingPlan.filter(d => d.marker === O).map(d => d.day))].sort((a, b) => a - b)
+  }
+  if (scheduleId === 'congregacao-crista') {
+    return [...new Set(readingPlan.filter(d => d.marker === B).map(d => d.day))].sort((a, b) => a - b)
+  }
+  const section = sections.find(s => s.id === scheduleId)
+  if (section) {
+    return [...new Set(readingPlan.filter(d => d.section.id === scheduleId).map(d => d.day))].sort((a, b) => a - b)
+  }
+  return Array.from({ length: 366 }, (_, i) => i + 1)
+}
+
+export function getScheduleName(scheduleId: string): string {
+  return schedules.find(s => s.id === scheduleId)?.name || 'Bíblia em 1 Ano'
+}
+
+export function getCurrentSchedule(): string {
+  return localStorage.getItem('reading_schedule') || 'full'
+}
+
+export function setCurrentSchedule(scheduleId: string): void {
+  localStorage.setItem('reading_schedule', scheduleId)
+}
+
+export function getNextUncompletedInSchedule(scheduleDays: number[], completedDays: Set<number>): number {
+  for (const d of scheduleDays) {
+    if (!completedDays.has(d)) return d
+  }
+  return scheduleDays[scheduleDays.length - 1] || 366
+}
+
+export function getUnreadDaysCount(scheduleDays: number[], completedDays: Set<number>): number {
+  return scheduleDays.filter(d => !completedDays.has(d)).length
 }

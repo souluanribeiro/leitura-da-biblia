@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { sections, getDaysInSection } from '../lib/reading-plan'
+import { sections, getDaysInSection, getCurrentSchedule } from '../lib/reading-plan'
 import {
   CheckCircle, ScrollText, Music, MessageSquare,
   Crown, Home, Bird, Users, Mail, PenTool, BookOpen, Cookie,
@@ -28,7 +28,7 @@ export default function Sections() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    supabase.from('reading_progress').select('day_number').then(({ data }) => {
+    supabase.from('reading_progress').select('day_number').eq('schedule_id', getCurrentSchedule()).then(({ data }) => {
       if (data) setCompletedDays(new Set(data.map(r => r.day_number)))
     })
   }, [])
@@ -67,13 +67,13 @@ export default function Sections() {
               </div>
 
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {days.map((d, idx) => {
+                {(expanded.has(section.id) ? days : days.slice(0, 20)).map((d, idx) => {
                   const isDone = completedDays.has(d.day)
                   return (
                     <button
                       key={d.day}
                       onClick={() => navigate(`/ler/${d.day}`)}
-                      className={`h-7 px-1.5 rounded-md text-xs flex items-center gap-1 transition-colors btn-ghost ${
+                      className={`h-10 min-w-[40px] px-2 rounded-lg text-xs flex items-center gap-1 transition-colors btn-ghost ${
                         isDone
                           ? 'text-white'
                           : 'bg-bg-hover text-text-secondary hover:bg-accent/10'
@@ -86,6 +86,22 @@ export default function Sections() {
                     </button>
                   )
                 })}
+                {days.length > 20 && !expanded.has(section.id) && (
+                  <button
+                    onClick={() => setExpanded(prev => new Set(prev).add(section.id))}
+                    className="h-10 px-3 rounded-lg text-xs font-bold flex items-center bg-accent text-white hover:bg-accent/80 transition-colors"
+                  >
+                    +{days.length - 20}
+                  </button>
+                )}
+                {expanded.has(section.id) && days.length > 20 && (
+                  <button
+                    onClick={() => setExpanded(prev => { const next = new Set(prev); next.delete(section.id); return next })}
+                    className="h-10 px-3 rounded-lg text-xs font-bold flex items-center bg-purple-600 text-white hover:bg-purple-500 transition-colors"
+                  >
+                    recolher
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -126,7 +142,7 @@ export default function Sections() {
                     <button
                       key={d.day}
                       onClick={() => navigate(`/ler/${d.day}`)}
-                      className={`w-7 h-7 rounded-md text-xs flex items-center justify-center transition-colors btn-ghost ${
+                      className={`w-10 h-10 rounded-lg text-xs flex items-center justify-center transition-colors btn-ghost ${
                         isDone
                           ? 'text-white'
                           : 'bg-bg-hover text-text-secondary hover:bg-accent/10'
@@ -141,7 +157,7 @@ export default function Sections() {
                 {days.length > 20 && !expanded.has(section.id) && (
                   <button
                     onClick={() => setExpanded(prev => new Set(prev).add(section.id))}
-                    className="h-7 px-2 rounded-md text-xs font-bold flex items-center bg-accent text-white hover:bg-accent/80 transition-colors"
+                    className="h-10 px-3 rounded-lg text-xs font-bold flex items-center bg-accent text-white hover:bg-accent/80 transition-colors"
                   >
                     +{days.length - 20}
                   </button>
@@ -149,7 +165,7 @@ export default function Sections() {
                 {expanded.has(section.id) && days.length > 20 && (
                   <button
                     onClick={() => setExpanded(prev => { const next = new Set(prev); next.delete(section.id); return next })}
-                    className="h-7 px-2 rounded-md text-xs font-bold flex items-center bg-purple-600 text-white hover:bg-purple-500 transition-colors"
+                    className="h-10 px-3 rounded-lg text-xs font-bold flex items-center bg-purple-600 text-white hover:bg-purple-500 transition-colors"
                   >
                     recolher
                   </button>

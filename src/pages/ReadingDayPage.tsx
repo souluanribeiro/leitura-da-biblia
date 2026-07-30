@@ -1,20 +1,12 @@
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabase'
-import { getReadingForDay, getBookVideoUrl, getWolUrl, isReadingStarted, setReadingStartDate } from '../lib/reading-plan'
+import { getReadingForDay, getBookVideoUrl, getWolUrl, isReadingStarted, setReadingStartDate, getChaptersList, getCurrentSchedule, buildAllCheckedChapters, saveCheckedChapters, checkedChaptersStorageKey } from '../lib/reading-plan'
 import { getBookIntroVideo } from '../lib/jw-media'
-import { ArrowLeft, CheckCircle, Play, BookOpen, Square, CheckSquare, ExternalLink, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Play, Square, CheckSquare, ExternalLink, ChevronLeft, ChevronRight, Trash2, Share2 } from 'lucide-react'
 import { ReadingDaySkeleton } from '../components/Skeleton'
-
-function getChaptersList(chapters: string) {
-  const ch = chapters.replace(/\s/g, '').split(/[–-]/)
-  const start = parseInt(ch[0])
-  const end = parseInt(ch[1] || ch[0])
-  if (isNaN(start)) return []
-  const list: number[] = []
-  for (let i = start; i <= end; i++) list.push(i)
-  return list
-}
+import { shareContent, getShareText } from '../lib/share'
+import { showToast } from '../components/Toast'
 
 const chapterKey = (readingIdx: number, chapter: number) => `${readingIdx}-${chapter}`
 
@@ -22,6 +14,7 @@ export default function ReadingDayPage() {
   const { day } = useParams()
   const navigate = useNavigate()
   const dayNum = parseInt(day || '1')
+  const scheduleId = getCurrentSchedule()
   const readings = getReadingForDay(dayNum)
   const [completed, setCompleted] = useState(false)
   const [noteContent, setNoteContent] = useState('')
@@ -30,8 +23,14 @@ export default function ReadingDayPage() {
   const [checkedChapters, setCheckedChapters] = useState<Record<string, boolean>>({})
   const [videoUrls, setVideoUrls] = useState<Record<number, string | null>>({})
   const [loading, setLoading] = useState(true)
+  const [showConfetti, setShowConfetti] = useState(false)
 
-  const totalChapters = readings.reduce((sum, r, i) => sum + getChaptersList(r.chapters).length, 0)
+  const triggerConfetti = () => {
+    setShowConfetti(true)
+    setTimeout(() => setShowConfetti(false), 2000)
+  }
+
+  const totalChapters = readings.reduce((sum, r) => sum + getChaptersList(r.chapters).length, 0)
   const checkedCount = readings.reduce((sum, r, i) => {
     const chapters = getChaptersList(r.chapters)
     return sum + chapters.filter(ch => checkedChapters[chapterKey(i, ch)]).length
@@ -39,16 +38,11 @@ export default function ReadingDayPage() {
   const allChaptersChecked = totalChapters > 0 && checkedCount === totalChapters
 
   const persistChecked = (next: Record<string, boolean>) => {
-    localStorage.setItem(`checked_${dayNum}`, JSON.stringify(next))
+    saveCheckedChapters(dayNum, next)
   }
 
   const checkAllChapters = () => {
-    const allChecked: Record<string, boolean> = {}
-    readings.forEach((r, i) => {
-      getChaptersList(r.chapters).forEach(ch => {
-        allChecked[chapterKey(i, ch)] = true
-      })
-    })
+    const allChecked = buildAllCheckedChapters(readings)
     setCheckedChapters(allChecked)
     persistChecked(allChecked)
   }
@@ -59,7 +53,15 @@ export default function ReadingDayPage() {
   }
 
   const ensureStartDate = () => {
-    if (dayNum === 1 && !isReadingStarted()) setReadingStartDate(new Date())
+    if (dayNum === 1 && !isReadingStarted()) {
+      const now = new Date()
+      setReadingStartDate(now)
+      supabase.auth.getUser().then(({ data }) => {
+        if (data?.user) {
+          supabase.from('profiles').upsert({ id: data.user.id, reading_start_date: now.toISOString().slice(0, 10) }, { onConflict: 'id' })
+        }
+      })
+    }
   }
 
   const toggleChapter = (key: string) => {
@@ -70,14 +72,16 @@ export default function ReadingDayPage() {
     const checked = Object.values(next).filter(Boolean).length
     if (checked === totalChapters && !completed) {
       ensureStartDate()
+      triggerConfetti()
+      showToast('Dia concluído! Parabéns!', 'success')
       supabase.auth.getUser().then(({ data }) => {
         if (data?.user) {
-          supabase.from('reading_progress').insert({ user_id: data.user.id, day_number: dayNum }).then(() => setCompleted(true))
+          supabase.from('reading_progress').upsert({ user_id: data.user.id, day_number: dayNum, schedule_id: scheduleId }, { onConflict: 'user_id,day_number,schedule_id', ignoreDuplicates: true }).then(() => setCompleted(true))
         }
       })
     } else if (checked < totalChapters && completed) {
       supabase.auth.getUser().then(({ data }) => {
-        if (data?.user) supabase.from('reading_progress').delete().eq('user_id', data.user.id).eq('day_number', dayNum)
+        if (data?.user) supabase.from('reading_progress').delete().eq('user_id', data.user.id).eq('day_number', dayNum).eq('schedule_id', scheduleId)
       })
       setCompleted(false)
     }
@@ -88,13 +92,13 @@ export default function ReadingDayPage() {
   }, [dayNum])
 
   const loadAll = async () => {
-    const { data } = await supabase.from('reading_progress').select('day_number').eq('day_number', dayNum).maybeSingle()
+    const { data } = await supabase.from('reading_progress').select('day_number').eq('day_number', dayNum).eq('schedule_id', scheduleId).maybeSingle()
     const isCompleted = !!data
     setCompleted(isCompleted)
 
     let saved: Record<string, boolean> | null = null
     try {
-      const raw = localStorage.getItem(`checked_${dayNum}`)
+      const raw = localStorage.getItem(checkedChaptersStorageKey(dayNum))
       if (raw) saved = JSON.parse(raw)
     } catch {}
 
@@ -124,14 +128,17 @@ export default function ReadingDayPage() {
     const user = (await supabase.auth.getUser()).data.user
     if (!user) return
     if (completed) {
-      await supabase.from('reading_progress').delete().eq('user_id', user.id).eq('day_number', dayNum)
+      await supabase.from('reading_progress').delete().eq('user_id', user.id).eq('day_number', dayNum).eq('schedule_id', scheduleId)
       setCompleted(false)
       uncheckAllChapters()
+      showToast('Leitura desmarcada', 'info')
     } else {
       ensureStartDate()
-      await supabase.from('reading_progress').insert({ user_id: user.id, day_number: dayNum })
+      await supabase.from('reading_progress').upsert({ user_id: user.id, day_number: dayNum, schedule_id: scheduleId }, { onConflict: 'user_id,day_number,schedule_id', ignoreDuplicates: true })
       setCompleted(true)
       checkAllChapters()
+      triggerConfetti()
+      showToast('Dia concluído! Parabéns!', 'success')
     }
   }
 
@@ -153,6 +160,16 @@ export default function ReadingDayPage() {
       setNoteStatus('error')
     }
   }, [noteId, dayNum])
+
+  const deleteNote = async () => {
+    if (!noteId) return
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return
+    await supabase.from('notes').delete().eq('id', noteId)
+    setNoteId(null)
+    setNoteContent('')
+    setNoteStatus('idle')
+  }
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -176,12 +193,32 @@ export default function ReadingDayPage() {
 
   return (
     <div className="p-4 space-y-4 max-w-lg mx-auto pb-8 fade-in">
+      {showConfetti && (
+        <div className="fixed inset-0 pointer-events-none z-50">
+          {Array.from({ length: 30 }, (_, i) => (
+            <div
+              key={i}
+              className="confetti-piece"
+              style={{
+                left: `${Math.random() * 100}%`,
+                backgroundColor: ['#f97316', '#3b82f6', '#22c55e', '#a855f7', '#eab308'][i % 5],
+                animationDelay: `${Math.random() * 0.5}s`,
+                animationDuration: `${1.5 + Math.random() * 1}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+
       <button onClick={() => navigate('/')} className="flex items-center gap-1 text-text-muted hover:text-text-secondary text-sm btn-ghost">
         <ArrowLeft size={16} /> Voltar
       </button>
 
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-text-primary">Dia {dayNum}</h1>
+        <div>
+          <h1 className="text-xl font-bold text-text-primary">{readings[0]?.section.name || 'Leitura'}</h1>
+          <p className="text-xs text-text-muted">Dia {dayNum} do cronograma de leitura da Bíblia em 1 ano</p>
+        </div>
         <button
           onClick={toggleComplete}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-all btn-primary ${
@@ -191,7 +228,7 @@ export default function ReadingDayPage() {
           }`}
         >
           <CheckCircle size={16} />
-          {completed ? 'Concluído' : 'Marcar lido'}
+          {completed ? 'Concluído' : 'Marcar como lido'}
         </button>
       </div>
 
@@ -218,10 +255,20 @@ export default function ReadingDayPage() {
           <div key={i} className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden card">
             <div className="p-4 border-b border-white/5 flex items-center gap-3">
               <span className={`text-xl ${r.marker === '🔸' ? 'text-orange-400' : r.marker === '🔹' ? 'text-blue-400' : 'text-text-muted'}`}>{r.marker}</span>
-              <div>
+              <div className="flex-1">
                 <h2 className="font-semibold text-text-primary">{r.title}</h2>
                 <p className="text-xs text-text-muted mt-0.5">{r.section.name}</p>
               </div>
+              <button
+                onClick={() => shareContent(
+                  `Dia ${dayNum} — ${r.title}`,
+                  getShareText({ dayNumber: dayNum, title: r.title, book: r.book, sectionName: r.section.name }),
+                  `https://leitura-da-biblia.vercel.app/ler/${dayNum}`
+                )}
+                className="text-text-muted hover:text-accent p-1.5 rounded-lg hover:bg-bg-hover transition-colors"
+              >
+                <Share2 size={16} />
+              </button>
             </div>
 
             {videoUrl && (
@@ -296,16 +343,35 @@ export default function ReadingDayPage() {
       <div className="bg-bg-card rounded-2xl p-4 border border-white/5">
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-sm font-medium text-text-muted">Suas anotações</h3>
-          <span className={`text-xs ${
-            noteStatus === 'saving' ? 'text-text-muted' : noteStatus === 'error' ? 'text-red-400' : noteContent.trim() ? 'text-green-400' : 'opacity-0'
-          }`}>
-            {noteStatus === 'saving' ? 'Salvando...' : noteStatus === 'error' ? 'Erro ao salvar' : '✓ Salvo'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs ${
+              noteStatus === 'saving' ? 'text-text-muted' : noteStatus === 'error' ? 'text-red-400' : noteContent.trim() ? 'text-green-400' : 'opacity-0'
+            }`}>
+              {noteStatus === 'saving' ? 'Salvando...' : noteStatus === 'error' ? 'Erro ao salvar' : '✓ Salvo'}
+            </span>
+            {noteContent.trim() && (
+              <button
+                onClick={() => shareContent(
+                  `Minha anotação — Dia ${dayNum}`,
+                  `📝 Minha anotação — Dia ${dayNum}\n\n"${noteContent}"\n\n📖 Leitura da Bíblia em 1 Ano`
+                )}
+                className="text-text-muted hover:text-accent transition-colors p-1"
+              >
+                <Share2 size={14} />
+              </button>
+            )}
+            {noteId && (
+              <button onClick={deleteNote} className="text-text-muted hover:text-red-400 transition-colors p-1">
+                <Trash2 size={14} />
+              </button>
+            )}
+          </div>
         </div>
         <textarea
           value={noteContent}
           onChange={e => setNoteContent(e.target.value)}
           placeholder="O que você aprendeu hoje?"
+          maxLength={5000}
           className="w-full bg-bg-hover border border-white/5 rounded-xl p-3 text-sm text-text-primary placeholder-text-muted resize-none h-28 focus:outline-none focus:border-accent/30"
         />
       </div>
@@ -316,17 +382,15 @@ export default function ReadingDayPage() {
             onClick={() => navigate(`/ler/${dayNum - 1}`)}
             className="flex-1 flex items-center justify-center gap-2 bg-bg-card border border-white/5 rounded-xl py-3 text-sm text-text-muted hover:bg-bg-hover transition-colors"
           >
-            <ChevronLeft size={16} /> Dia {dayNum - 1}
+            <ChevronLeft size={16} /> Anterior
           </button>
         )}
-        {dayNum < 366 && (
-          <button
-            onClick={() => navigate(`/ler/${dayNum + 1}`)}
-            className="flex-1 flex items-center justify-center gap-2 bg-bg-card border border-white/5 rounded-xl py-3 text-sm text-text-muted hover:bg-bg-hover transition-colors"
-          >
-            Dia {dayNum + 1} <ChevronRight size={16} />
-          </button>
-        )}
+        <button
+          onClick={() => navigate(`/ler/${dayNum + 1}`)}
+          className="flex-1 flex items-center justify-center gap-2 bg-bg-card border border-white/5 rounded-xl py-3 text-sm text-text-muted hover:bg-bg-hover transition-colors"
+        >
+          Próximo <ChevronRight size={16} />
+        </button>
       </div>
     </div>
   )

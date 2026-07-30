@@ -4,3 +4,5 @@ dist
 .env
 supabase/.temp
 *.tsbuildinfo
+scripts/.venv
+scripts/pdfs

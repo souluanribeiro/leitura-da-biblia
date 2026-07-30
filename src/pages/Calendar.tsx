@@ -2,11 +2,11 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import {
-  readingPlan, getReadingForDay, isReadingStarted, getReadingStartDate,
-  getReadingDayForDate, getDateForReadingDay, clearReadingStartDate,
-  setReadingStartDate, getTodayReadingDay,
+  getReadingForDay, isReadingStarted, getReadingStartDate,
+  getReadingDayForDate, clearReadingStartDate,
+  getTodayReadingDay, getCurrentSchedule, getScheduleDays,
 } from '../lib/reading-plan'
-import { ChevronLeft, ChevronRight, CheckCircle, BookOpen, RotateCcw } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CheckCircle, BookOpen, RotateCcw, AlertTriangle } from 'lucide-react'
 import { CalendarSkeleton } from '../components/Skeleton'
 
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -93,13 +93,17 @@ export default function Calendar() {
   const [d, setD] = useState(() => new Date().getDate())
   const [started, setStarted] = useState(false)
   const [startDate, setStartDate] = useState<Date | null>(null)
+  const [currentSchedule] = useState(() => getCurrentSchedule())
   const [showReset, setShowReset] = useState(false)
+  const [resetOption, setResetOption] = useState<'current' | 'all' | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { loadAll() }, [])
 
+  const totalDays = getScheduleDays(currentSchedule).length
+
   const loadAll = async () => {
-    const { data } = await supabase.from('reading_progress').select('day_number').order('day_number')
+    const { data } = await supabase.from('reading_progress').select('day_number').eq('schedule_id', currentSchedule).order('day_number')
     if (data) setCompleted(new Set(data.map(r => r.day_number)))
     setStarted(isReadingStarted())
     setStartDate(getReadingStartDate())
@@ -115,19 +119,24 @@ export default function Calendar() {
 
   const handleReset = async () => {
     const user = (await supabase.auth.getUser()).data.user
-    if (user) await supabase.from('reading_progress').delete().eq('user_id', user.id)
-    clearReadingStartDate()
+    if (!user) return
+    if (resetOption === 'current') {
+      await supabase.from('reading_progress').delete().eq('user_id', user.id).eq('schedule_id', currentSchedule)
+    } else {
+      await supabase.from('reading_progress').delete().eq('user_id', user.id)
+      clearReadingStartDate()
+      setStartDate(null)
+      setStarted(false)
+    }
     setCompleted(new Set())
-    setStarted(false)
-    setStartDate(null)
     setShowReset(false)
+    setResetOption(null)
     goToday()
   }
 
   if (loading) return <CalendarSkeleton />
 
   const todayReadingDay = getTodayReadingDay()
-  const todayReading = todayReadingDay ? getReadingForDay(todayReadingDay) : []
   const daysRead = completed.size
 
   return (
@@ -136,7 +145,7 @@ export default function Calendar() {
 
       {started && startDate && (
         <p className="text-xs text-text-muted">
-          Início: {startDate.toLocaleDateString('pt-BR')} · Progresso: {daysRead}/366 dias ({Math.round(daysRead / 366 * 100)}%)
+          Início: {startDate.toLocaleDateString('pt-BR')} · Progresso: {daysRead}/{totalDays} dias ({Math.round(daysRead / totalDays * 100)}%)
         </p>
       )}
 
@@ -192,13 +201,13 @@ export default function Calendar() {
           onToggleComplete={async (day) => {
             const user = (await supabase.auth.getUser()).data.user
             if (!user) return
-            if (completed.has(day)) {
-              await supabase.from('reading_progress').delete().eq('user_id', user.id).eq('day_number', day)
-              setCompleted(prev => { const n = new Set(prev); n.delete(day); return n })
-            } else {
-              await supabase.from('reading_progress').insert({ user_id: user.id, day_number: day })
-              setCompleted(prev => { const n = new Set(prev); n.add(day); return n })
-            }
+              if (completed.has(day)) {
+                await supabase.from('reading_progress').delete().eq('user_id', user.id).eq('day_number', day).eq('schedule_id', currentSchedule)
+                setCompleted(prev => { const n = new Set(prev); n.delete(day); return n })
+              } else {
+                await supabase.from('reading_progress').upsert({ user_id: user.id, day_number: day, schedule_id: currentSchedule }, { onConflict: 'user_id,day_number,schedule_id', ignoreDuplicates: true })
+                setCompleted(prev => { const n = new Set(prev); n.add(day); return n })
+              }
           }}
         />
       )}
@@ -220,17 +229,45 @@ export default function Calendar() {
         <RotateCcw size={12} /> Reiniciar cronograma
       </button>
 
-      {showReset && (
+      {showReset && !resetOption && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setShowReset(false)}>
           <div className="bg-bg-card rounded-2xl p-6 max-w-sm w-full space-y-4 border border-white/10" onClick={e => e.stopPropagation()}>
-            <h3 className="font-semibold text-text-primary">Reiniciar cronograma?</h3>
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={18} className="text-red-400" />
+              <h3 className="font-semibold text-text-primary">Reiniciar cronograma</h3>
+            </div>
             <p className="text-sm text-text-muted">Todo o progresso será apagado. Essa ação não pode ser desfeita.</p>
+            <button onClick={() => setResetOption('current')} className="w-full py-2.5 rounded-xl bg-red-500/20 text-red-400 text-sm font-medium hover:bg-red-500/30 transition-colors">
+              Reiniciar apenas este cronograma
+            </button>
+            <button onClick={() => setResetOption('all')} className="w-full py-2.5 rounded-xl bg-red-500/40 text-red-300 text-sm font-medium hover:bg-red-500/50 transition-colors">
+              Reiniciar todos os cronogramas
+            </button>
+            <button onClick={() => setShowReset(false)} className="w-full py-2 rounded-xl bg-bg-hover text-text-muted text-sm font-medium">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {resetOption && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => { setShowReset(false); setResetOption(null) }}>
+          <div className="bg-bg-card rounded-2xl p-6 max-w-sm w-full space-y-4 border border-white/10" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-2">
+              <AlertTriangle size={18} className="text-red-400" />
+              <h3 className="font-semibold text-text-primary">Confirmar</h3>
+            </div>
+            <p className="text-sm text-text-muted">
+              {resetOption === 'current'
+                ? `Todo o progresso do cronograma atual será apagado permanentemente.`
+                : 'Todo o progresso de todos os cronogramas será apagado permanentemente.'}
+            </p>
             <div className="flex gap-3">
-              <button onClick={() => setShowReset(false)} className="flex-1 py-2.5 rounded-xl bg-bg-hover text-text-muted text-sm font-medium">
+              <button onClick={() => { setShowReset(false); setResetOption(null) }} className="flex-1 py-2.5 rounded-xl bg-bg-hover text-text-muted text-sm font-medium">
                 Cancelar
               </button>
               <button onClick={handleReset} className="flex-1 py-2.5 rounded-xl bg-red-500/20 text-red-400 text-sm font-medium">
-                Reiniciar
+                Sim, reiniciar
               </button>
             </div>
           </div>
@@ -437,7 +474,7 @@ function YearView({ year, completed, onPrev, onNext, onToday, onSelectMonth }: {
             if (d) doneCount++
             dots.push(d)
           }
-          const pct = total > 0 ? Math.round(doneCount / 366 * 100) : 0
+          const pct = total > 0 ? Math.round(doneCount / total * 100) : 0
 
           return (
             <button

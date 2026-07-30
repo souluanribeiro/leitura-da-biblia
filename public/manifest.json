@@ -1,0 +1,44 @@
+{
+  "name": "Leitura da Bíblia",
+  "short_name": "Bíblia",
+  "description": "Leia a Bíblia em 1 ano com plano diário",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f0f1a",
+  "theme_color": "#3b82f6",
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Leitura de Hoje",
+      "short_name": "Hoje",
+      "description": "Abrir a leitura do dia",
+      "url": "/",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Calendário",
+      "short_name": "Calendário",
+      "description": "Ver calendário de leitura",
+      "url": "/calendario",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Chat Sheep",
+      "short_name": "Sheep",
+      "description": "Perguntar ao agente bíblico",
+      "url": "/agente",
+      "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }]
+    }
+  ]
+}
