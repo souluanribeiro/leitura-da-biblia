@@ -134,8 +134,10 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - **Edge Function:** `supabase/functions/bible-agent/index.ts`
 - **IA:** Groq API (modelo `llama-3.3-70b-versatile`)
 - **Rotação de API keys:** múltiplas keys no env `GROQ_API_KEYS` (separadas por vírgula)
-- **Prompt editável:** lido da tabela `agent_config` (chave `system_prompt`)
-- **Base de conhecimento:** tabela `knowledge_base` com busca por keyword matching
+- **Prompt = 100% do admin-app:** lido de `agent_config.system_prompt`. **Não existe prompt padrão no código.** Prompt vazio → agente responde que precisa de configuração.
+- **Fontes = 100% do admin-app:** busca **somente** na tabela `knowledge_base` via RPC `search_knowledge_base_fts` (FTS v2, OR de termos com ranking). **Sem scraping WOL, sem busca em `verses`.**
+- **Placeholders do prompt (opcionais):** `{userName}`, `{userStatus}`, `{dayNumber}`, `{readingContext}`, `{userNotes}`, `{searchContext}`, `{agentName}`. Contexto só é buscado se o prompt usar o placeholder.
+- **Auth obrigatória:** edge function valida JWT do usuário (401 sem token) + CORS restrito.
 - **Conversas:** tabela `conversations` com soft delete e arquivamento
 - **Histórico:** tabela `chat_history` com `conversation_id` para agrupar mensagens
 - **Interface:** sidebar estilo ChatGPT com lista de conversas, criar/excluir
@@ -150,8 +152,8 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - **URL:** https://admin-app-two-orcin.vercel.app
 - **Páginas:** Login, Dashboard, Knowledge Base, Prompt Editor, Logs, Settings
 - **Settings:** Foto do agente (base64), nome, descrição, sugestões
-- **Knowledge Base:** CRUD de artigos com título, conteúdo, keywords
-- **Prompt Editor:** Edição do system prompt do agente
+- **Knowledge Base:** CRUD de artigos com título, conteúdo, keywords — **única fonte de conhecimento do Sheep**
+- **Prompt Editor:** Edição do system prompt do agente (com dica de placeholders)
 - **Logs:** Visualização do histórico de conversas
 - **Acesso:** restrito a usuários com `profiles.is_admin = true`
 
@@ -193,7 +195,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 
 - **Projeto:** `lbgztfqgzjmiwvcghnki`
 - **Tabelas:** `reading_progress`, `notes`, `push_subscriptions`, `profiles` (com `reading_start_date`, `is_admin`), `chat_history` (com `conversation_id`), `conversations`, `knowledge_base`, `agent_config`
-- **Edge Functions:** `bible-agent`, `send-daily-reminder`
+- **Edge Functions:** `bible-agent` (`verify_jwt=true`), `send-daily-reminder` (`verify_jwt=false`, cron), `admin-operations` (`verify_jwt=false` com auth+admin check manual), `send-admin-notification` (`verify_jwt=false` com auth+admin check manual)
 - **Auth trigger:** cria perfil automaticamente no signup
 
 ### Migrations
@@ -202,6 +204,8 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - `004_knowledge_base.sql` — tabela knowledge_base + RLS admin
 - `005_agent_config.sql` — tabela agent_config + is_admin no profiles
 - `006_conversations.sql` — tabela conversations + conversation_id no chat_history
+- `018_knowledge_base_fts.sql` — search_vector + RPC FTS (v1, plainto_tsquery)
+- `023_knowledge_base_fts_v2_and_trigger.sql` — FTS v2 (OR de termos) + trigger de search_vector
 
 ---
 
@@ -232,8 +236,8 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 13. **Bíblia copyright:** links externos para wol.jw.org
 14. **Baptism anniversary:** banner + notificação
 15. **Agente IA:** Groq (não Gemini) com rotação de keys para evitar rate limit
-16. **Busca WOL desativada:** causava lentidão (~15s); IA já tem conhecimento bíblico
-17. **Base de conhecimento local:** keyword matching com scoring (keyword=3pts, título=2pts, conteúdo=1pt)
+16. **Controle total do agente:** prompt 100% do admin (sem prompt padrão no código) e fontes 100% do admin (knowledge_base, sem WOL). Ver `RELATORIO_SESSAO_2026-08-03.md`
+17. **Busca na base:** FTS v2 com OR de termos (tolerante a linguagem natural); trigger mantém `search_vector` atualizado ao editar artigos no admin
 
 ---
 
@@ -257,11 +261,14 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - `src/lib/share.ts` — Web Share API
 - `src/lib/user-profile.ts` — Perfil do usuário
 - `src/lib/supabase.ts` — Cliente Supabase
-- `supabase/functions/bible-agent/index.ts` — Edge Function com Groq + knowledge_base
-- `supabase/functions/send-daily-reminder/index.ts` — Edge Function lembretes
+- `supabase/functions/bible-agent/index.ts` — Edge Function com Groq + knowledge_base (prompt 100% admin)
+- `supabase/functions/send-daily-reminder/index.ts` — Edge Function lembretes (cron)
+- `supabase/functions/admin-operations/index.ts` — Edge Function operações de admin (auth+is_admin manual)
+- `supabase/functions/send-admin-notification/index.ts` — Edge Function push notifications para admin
 - `supabase/migrations/004_knowledge_base.sql`
 - `supabase/migrations/005_agent_config.sql`
 - `supabase/migrations/006_conversations.sql`
+- `supabase/migrations/023_knowledge_base_fts_v2_and_trigger.sql`
 
 ### Admin App
 - `src/pages/Settings.tsx` — Foto, nome, descrição, sugestões do agente
@@ -275,4 +282,4 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 
 ---
 
-*Última atualização: 27/07/2026*
+*Última atualização: 03/08/2026*

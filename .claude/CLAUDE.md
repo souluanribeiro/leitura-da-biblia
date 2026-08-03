@@ -14,7 +14,7 @@
 - **App:** https://leitura-da-biblia.vercel.app (projeto Vercel: `leitura-da-biblia`)
 - **Admin App:** https://admin-app-two-orcin.vercel.app (projeto Vercel: `admin-app`)
 - **Pasta do projeto:** `Biblia-Em-1-Ano/`
-- **Edge Functions deploy:** `npx supabase functions deploy <nome> --project-ref lbgztfqgzjmiwvcghnki`
+- **Edge Functions deploy:** `npx supabase functions deploy <nome> --project-ref lbgztfqgzjmiwvcghnki` (4 functions: `bible-agent`, `send-daily-reminder`, `admin-operations`, `send-admin-notification`; todas declaradas em `supabase/config.toml`)
 - **Bíblia copyright:** NUNCA usar API JW.ORG em código final. Usar links externos `wol.jw.org`.
 - **Admin user:** `UPDATE profiles SET is_admin = true WHERE id = '...';`
 
@@ -22,6 +22,6 @@
 - **Modelo:** Groq `llama-3.3-70b-versatile` (OpenAI-compatible)
 - **Edge Function:** `supabase/functions/bible-agent/index.ts`
 - **API Key:** secret `GROQ_API_KEYS`
-- **Base de conhecimento:** tabela `knowledge_base` com keyword matching
+- **Controle total (desde 03/08/2026):** prompt 100% do admin-app (`agent_config.system_prompt`, **sem prompt padrão no código**) e fontes 100% do admin-app (`knowledge_base`, **sem WOL/scraping**). Ver `.claude/RELATORIO_SESSAO_2026-08-03.md`.
 - **Config:** tabela `agent_config` (prompt, nome, avatar, descrição, sugestões)
-- **verify_jwt:** `false`
+- **verify_jwt:** `true` (config.toml) + validação manual com `auth.getUser` dentro da função
