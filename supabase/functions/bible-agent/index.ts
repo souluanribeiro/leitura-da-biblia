@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const GROQ_API_KEYS = (Deno.env.get("GROQ_API_KEYS") || "").split(",").filter(Boolean)
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
-const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "llama-3.3-70b-versatile"
+const GROQ_MODEL = Deno.env.get("GROQ_MODEL") || "openai/gpt-oss-120b"
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 
@@ -47,12 +47,17 @@ async function searchKnowledgeBase(supabase: any, query: string): Promise<string
   try {
     const { data, error } = await supabase.rpc("search_knowledge_base_fts", {
       search_query: query,
-      match_count: 8,
+      match_count: 6,
     })
     if (error) throw error
     if (!data || data.length === 0) return ""
+    const MAX_SOURCE_CHARS = 1200
     return data
-      .map((d: any, i: number) => `[Fonte ${i + 1}] ${d.title}\n${d.content}`)
+      .map((d: any, i: number) => {
+        const content = d.content ? d.content.substring(0, MAX_SOURCE_CHARS) : ""
+        const truncated = d.content && d.content.length > MAX_SOURCE_CHARS
+        return `[Fonte ${i + 1}] ${d.title}\n${content}${truncated ? "..." : ""}`
+      })
       .join("\n\n")
   } catch (e) {
     console.error("FTS search error:", e)
@@ -67,7 +72,7 @@ async function fetchUserNotes(supabase: any, userId: string) {
       .select("day_number, content, updated_at")
       .eq("user_id", userId)
       .order("updated_at", { ascending: false })
-      .limit(20)
+      .limit(10)
     if (error || !data || data.length === 0) return "Nenhuma nota disponível."
     return data.map((n: any) =>
       `- Dia ${n.day_number}: ${n.content.substring(0, 150)}${n.content.length > 150 ? "..." : ""}`
@@ -84,11 +89,17 @@ async function fetchChatHistory(supabase: any, userId: string, conversationId: s
       .select("role, content")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(50)
+      .limit(16)
     if (conversationId) query = query.eq("conversation_id", conversationId)
     const { data, error } = await query
     if (error || !data) return []
-    return data.reverse()
+    const MAX_MSG_CHARS = 400
+    return data.reverse().map((m: any) => ({
+      role: m.role,
+      content: m.content && m.content.length > MAX_MSG_CHARS
+        ? m.content.substring(0, MAX_MSG_CHARS) + "..."
+        : m.content,
+    }))
   } catch {
     return []
   }
@@ -191,7 +202,8 @@ serve(async (req) => {
     for (const msg of dbHistory) {
       messages.push({ role: msg.role === "user" ? "user" : "assistant", content: msg.content })
     }
-    for (const m of chatHistory) {
+    const MAX_CLIENT_HISTORY = 12
+    for (const m of chatHistory.slice(0, MAX_CLIENT_HISTORY)) {
       if (!dbHistory.some((d: any) => d.content === m.content && d.role === m.role)) {
         messages.push({ role: m.role === "assistant" ? "assistant" : "user", content: m.content })
       }
@@ -224,7 +236,7 @@ serve(async (req) => {
       })
 
       if (response.ok) break
-      if (response.status === 429) {
+      if (response.status === 429 || response.status === 413) {
         groqError = "429"
         await new Promise((r) => setTimeout(r, 1000))
         continue
