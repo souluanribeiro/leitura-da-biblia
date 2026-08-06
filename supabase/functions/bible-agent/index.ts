@@ -10,6 +10,9 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 const PROMPT_NOT_CONFIGURED_REPLY =
   '⚠️ O Sheep ainda não foi configurado.\n\nPeça ao administrador para definir o prompt do agente no painel de administração (Prompt do Agente). Sem esse prompt, o Sheep não consegue funcionar.'
 
+const NO_SOURCES_NOTICE =
+  '[AVISO IMPORTANTE: a busca na base de conhecimento (fontes carregadas pelo administrador) NÃO retornou NENHUM artigo para a pergunta do usuário. Isso significa que este assunto NÃO está coberto pelas fontes carregadas.\n\nNESTA SITUAÇÃO VOCÊ DEVE:\n- Responder de forma curta e educada avisando que não encontrou esse assunto nas fontes carregadas pelo administrador.\n- NÃO inventar versículos, citações bíblicas, doutrina nem informações que não estejam nas fontes.\n- Se fizer sentido, oferecer-se para ajudar com outro tema que esteja nas fontes.]'
+
 const ALLOWED_ORIGINS = ["https://leitura-da-biblia.vercel.app", "https://admin-app-two-orcin.vercel.app", "http://localhost:5173"]
 
 function getCorsHeaders(origin: string | null) {
@@ -179,6 +182,7 @@ serve(async (req) => {
     if (systemPrompt.includes("{searchContext}")) {
       kbResult = await searchKnowledgeBase(supabase, message)
     }
+    const kbContext = kbResult || NO_SOURCES_NOTICE
 
     // Notas do usuário — somente se o prompt usar {userNotes}
     let userNotes = "Nenhuma nota disponível."
@@ -196,7 +200,7 @@ serve(async (req) => {
       .replace(/\{dayNumber\}/g, String(dayNumber || ""))
       .replace(/\{readingContext\}/g, readingContext || "Plano de leitura da Bíblia em 366 dias")
       .replace(/\{userNotes\}/g, userNotes)
-      .replace(/\{searchContext\}/g, kbResult || "")
+      .replace(/\{searchContext\}/g, kbContext)
 
     const messages = [{ role: "system", content: systemPromptFilled }]
     for (const msg of dbHistory) {
