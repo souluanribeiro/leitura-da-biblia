@@ -108,9 +108,10 @@ async function fetchChatHistory(supabase: any, userId: string, conversationId: s
   }
 }
 
-async function saveChatMessage(supabase: any, userId: string, role: string, content: string, conversationId: string | null) {
+async function saveChatMessage(supabase: any, userId: string, userEmail: string, role: string, content: string, conversationId: string | null) {
   try {
     const insertData: Record<string, unknown> = { user_id: userId, role, content }
+    if (userEmail) insertData.user_email = userEmail
     if (conversationId) insertData.conversation_id = conversationId
     await supabase.from("chat_history").insert(insertData)
     if (conversationId) {
@@ -121,6 +122,19 @@ async function saveChatMessage(supabase: any, userId: string, role: string, cont
     }
   } catch (err) {
     console.error("Error saving chat message:", err)
+  }
+}
+
+async function logAgentError(supabase: any, userId: string | null, errorMessage: string, errorDetails: string | null) {
+  try {
+    await supabase.from("error_logs").insert({
+      user_id: userId || null,
+      error_message: errorMessage,
+      error_details: errorDetails,
+      agent_name: "Sheep",
+    })
+  } catch (e) {
+    console.error("Error saving error log:", e)
   }
 }
 
@@ -214,7 +228,7 @@ serve(async (req) => {
     }
     messages.push({ role: "user", content: message })
 
-    await saveChatMessage(supabase, userId, "user", message, conversationId)
+    await saveChatMessage(supabase, userId, user?.email || "", "user", message, conversationId)
 
     // Chamada ao Groq com rodízio de chaves + retry em caso de 429
     let lastKeyIndex = -1
@@ -254,6 +268,7 @@ serve(async (req) => {
         ? "Muitas requisições. Aguarde um momento e tente novamente."
         : "Erro ao processar a resposta da IA"
       console.error("Groq API error:", groqError)
+      await logAgentError(supabase, userId, errorMsg, groqError)
       return new Response(JSON.stringify({ error: errorMsg }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -263,19 +278,21 @@ serve(async (req) => {
     const data = await response.json()
     const text = data.choices?.[0]?.message?.content
     if (!text) {
+      await logAgentError(supabase, userId, "Resposta vazia da IA", null)
       return new Response(JSON.stringify({ error: "Resposta vazia da IA" }), {
         status: 502,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
 
-    await saveChatMessage(supabase, userId, "assistant", text, conversationId)
+    await saveChatMessage(supabase, userId, user?.email || "", "assistant", text, conversationId)
 
     return new Response(JSON.stringify({ reply: text }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   } catch (err) {
     console.error("Edge function error:", err)
+    await logAgentError(supabase, userId, "Erro interno do servidor", String(err))
     return new Response(JSON.stringify({ error: "Erro interno do servidor" }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
