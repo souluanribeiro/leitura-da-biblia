@@ -13,6 +13,10 @@ const PROMPT_NOT_CONFIGURED_REPLY =
 const NO_SOURCES_NOTICE =
   '[AVISO IMPORTANTE: a busca na base de conhecimento (fontes carregadas pelo administrador) NÃO retornou NENHUM artigo para a pergunta do usuário. Isso significa que este assunto NÃO está coberto pelas fontes carregadas.\n\nNESTA SITUAÇÃO VOCÊ DEVE:\n- Responder de forma curta e educada avisando que não encontrou esse assunto nas fontes carregadas pelo administrador.\n- NÃO inventar versículos, citações bíblicas, doutrina nem informações que não estejam nas fontes.\n- Se fizer sentido, oferecer-se para ajudar com outro tema que esteja nas fontes.]'
 
+const DEFAULT_DAILY_MESSAGE_LIMIT = 30
+const DEFAULT_BURST_MESSAGE_LIMIT = 5
+const MAX_MESSAGE_LENGTH = 2000
+
 const ALLOWED_ORIGINS = ["https://leitura-da-biblia.vercel.app", "https://admin-app-two-orcin.vercel.app", "http://localhost:5173"]
 
 function getCorsHeaders(origin: string | null) {
@@ -34,15 +38,52 @@ async function fetchAgentConfig(supabase: any) {
     const { data } = await supabase
       .from("agent_config")
       .select("key, value")
-      .in("key", ["system_prompt", "agent_name"])
+      .in("key", ["system_prompt", "agent_name", "daily_message_limit", "burst_message_limit"])
     const config: Record<string, string> = {}
     if (data) data.forEach((row: any) => { config[row.key] = row.value || "" })
     return {
       system_prompt: config.system_prompt || "",
       agent_name: config.agent_name || "Sheep",
+      daily_message_limit: parseInt(config.daily_message_limit, 10) || DEFAULT_DAILY_MESSAGE_LIMIT,
+      burst_message_limit: parseInt(config.burst_message_limit, 10) || DEFAULT_BURST_MESSAGE_LIMIT,
     }
   } catch {
-    return { system_prompt: "", agent_name: "Sheep" }
+    return {
+      system_prompt: "",
+      agent_name: "Sheep",
+      daily_message_limit: DEFAULT_DAILY_MESSAGE_LIMIT,
+      burst_message_limit: DEFAULT_BURST_MESSAGE_LIMIT,
+    }
+  }
+}
+
+async function checkRateLimit(supabase: any, userId: string, dailyLimit: number, burstLimit: number) {
+  const now = new Date()
+  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString()
+  const minuteAgo = new Date(now.getTime() - 60_000).toISOString()
+
+  const daily = await supabase
+    .from("chat_history")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("role", "user")
+    .gte("created_at", dayStart)
+
+  const burst = await supabase
+    .from("chat_history")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", userId)
+    .eq("role", "user")
+    .gte("created_at", minuteAgo)
+
+  const dailyCount = daily.count ?? 0
+  const burstCount = burst.count ?? 0
+  return {
+    allowed: dailyCount < dailyLimit && burstCount < burstLimit,
+    dailyCount,
+    dailyLimit,
+    burstCount,
+    burstLimit,
   }
 }
 
@@ -182,6 +223,28 @@ serve(async (req) => {
     // Config do agente — fonte única de verdade é o admin-app (agent_config)
     const agentConfig = await fetchAgentConfig(supabase)
     const agentName = agentConfig.agent_name
+
+    // Proteção anti-abuso — tamanho máximo da mensagem
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return new Response(JSON.stringify({ error: `Mensagem muito longa. Máximo de ${MAX_MESSAGE_LENGTH} caracteres.` }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
+    // Proteção anti-abuso — limite diário e por minuto por usuário
+    const rateLimit = await checkRateLimit(supabase, userId, agentConfig.daily_message_limit, agentConfig.burst_message_limit)
+    if (!rateLimit.allowed) {
+      const hitDaily = rateLimit.dailyCount >= rateLimit.dailyLimit
+      const reply = hitDaily
+        ? `Você atingiu o limite diário de ${rateLimit.dailyLimit} perguntas. Volte amanhã para continuar conversando com o ${agentName}.`
+        : `Você está enviando perguntas rápido demais. Aguarde um instante e tente novamente.`
+      return new Response(JSON.stringify({ error: reply }), {
+        status: 429,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
     let systemPrompt = agentConfig.system_prompt
 
     // Sem prompt configurado no admin → responde aviso, sem prompt padrão no código
