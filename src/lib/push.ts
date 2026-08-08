@@ -24,6 +24,7 @@ export async function getPermissionState(): Promise<NotificationPermission> {
 
 export async function subscribeToPush(preferredHour: number): Promise<boolean> {
   if (!isPushSupported()) return false
+  if (!VAPID_PUBLIC_KEY) return false
 
   const permission = await Notification.requestPermission()
   if (permission !== 'granted') return false
