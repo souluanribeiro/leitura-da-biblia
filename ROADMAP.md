@@ -6,11 +6,11 @@
 
 ## Pendências de lançamento (dashboard Supabase / admin)
 
-- [ ] **Auth → URL Configuration**: Site URL e Redirect URLs = `https://leitura-da-biblia.vercel.app`
-- [ ] **Email confirmation**: ligada no cadastro
-- [ ] **Google provider**: habilitar ou remover o botão de login com Google
-- [ ] **Sheep**: conferir se o `system_prompt` está salvo no admin (Configurações → Prompt do Agente)
-- [ ] **Knowledge base**: decidir se cadastra artigos básicos antes de liberar (hoje vazia — Sheep avisa "assunto não encontrado nas fontes")
+- [x] **Auth → URL Configuration**: Site URL e Redirect URLs = `https://leitura-da-biblia.vercel.app`
+- [x] **Email confirmation**: ligada no cadastro
+- [x] **Google provider**: habilitado e funcionando (login com Google ok)
+- [x] **Sheep**: `system_prompt` salvo no admin (Prompt do Agente)
+- [ ] **Knowledge base**: usuário cadastrando conteúdos aos poucos (Sheep avisa "assunto não encontrado" para temas ainda não adicionados — comportamento esperado)
 - [ ] Teste final em dispositivo limpo: cadastro com confirmação de e-mail, login, dia 1 do plano
 
 ## Adiado — push/lembrete diário
