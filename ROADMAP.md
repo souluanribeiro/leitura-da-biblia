@@ -11,7 +11,7 @@
 - [x] **Google provider**: habilitado e funcionando (login com Google ok)
 - [x] **Sheep**: `system_prompt` salvo no admin (Prompt do Agente)
 - [ ] **Knowledge base**: usuário cadastrando conteúdos aos poucos (Sheep avisa "assunto não encontrado" para temas ainda não adicionados — comportamento esperado)
-- [ ] Teste final em dispositivo limpo: cadastro com confirmação de e-mail, login, dia 1 do plano
+- [x] Teste final em dispositivo limpo: cadastro com confirmação de e-mail, login, dia 1 do plano (ok)
 
 ## Adiado — push/lembrete diário
 
