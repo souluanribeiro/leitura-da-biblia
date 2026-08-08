@@ -17,9 +17,9 @@
 
 - [x] `VITE_VAPID_PUBLIC_KEY` no Vercel (production, preview e development) + redeploy `dpl_5BvBwEAKJUZAQLtyVxnC2Z4FXR2r` — push ativo no app
 - [x] Secrets na edge function `send-daily-reminder`: `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (já existiam no Supabase)
-- [ ] **Cron**: agendar `send-daily-reminder` (Dashboard → Edge Functions → send-daily-reminder → Schedule, cron `0 * * * *`) — respeita `preferred_hour` por timezone
-- [ ] Teste no celular: Perfil → ativar lembrete → receber notificação no horário escolhido
-- [ ] Código tem fallback seguro: sem a chave VAPID, push fica desativado (não quebra o app)
+- [x] **Cron**: `send-daily-reminder-hourly` agendado e ativo (`0 * * * *`) — respeita `preferred_hour` por timezone
+- [x] Teste: push comprovado no computador (notificação exibida + log em `push_received_log`). No Galaxy A31 não aparece — limitação do aparelho (testado com serviço independente de web push; o aparelho não recebe push de nenhum serviço)
+- [x] Código tem fallback seguro: sem a chave VAPID, push fica desativado (não quebra o app)
 
 ---
 
