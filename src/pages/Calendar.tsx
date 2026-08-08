@@ -103,7 +103,8 @@ export default function Calendar() {
   const totalDays = getScheduleDays(currentSchedule).length
 
   const loadAll = async () => {
-    const { data } = await supabase.from('reading_progress').select('day_number').eq('schedule_id', currentSchedule).order('day_number')
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data } = await supabase.from('reading_progress').select('day_number').eq('user_id', user?.id ?? '').eq('schedule_id', currentSchedule).order('day_number')
     if (data) setCompleted(new Set(data.map(r => r.day_number)))
     setStarted(isReadingStarted())
     setStartDate(getReadingStartDate())
@@ -125,6 +126,11 @@ export default function Calendar() {
     } else {
       await supabase.from('reading_progress').delete().eq('user_id', user.id)
       clearReadingStartDate()
+      await supabase.from('profiles').upsert({ id: user.id, reading_start_date: null }, { onConflict: 'id' })
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i)
+        if (k?.startsWith('checked_')) localStorage.removeItem(k)
+      }
       setStartDate(null)
       setStarted(false)
     }

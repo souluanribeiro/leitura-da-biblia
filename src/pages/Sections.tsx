@@ -28,9 +28,11 @@ export default function Sections() {
   const [expanded, setExpanded] = useState<Set<string>>(new Set())
 
   useEffect(() => {
-    supabase.from('reading_progress').select('day_number').eq('schedule_id', getCurrentSchedule()).then(({ data }) => {
+    ;(async () => {
+      const { data: { user } } = await supabase.auth.getUser()
+      const { data } = await supabase.from('reading_progress').select('day_number').eq('user_id', user?.id ?? '').eq('schedule_id', getCurrentSchedule())
       if (data) setCompletedDays(new Set(data.map(r => r.day_number)))
-    })
+    })()
   }, [])
 
   const markerSections = sections.filter(s => markerSectionIds.has(s.id))

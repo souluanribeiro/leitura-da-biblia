@@ -89,7 +89,22 @@ self.addEventListener('push', (event) => {
     body: data.body || 'Hora da leitura diária!',
     icon: '/icons/icon-192.png',
     badge: '/icons/icon-192.png',
+    vibrate: [200, 100, 200],
+    tag: 'leitura-diaria',
+    renotify: true,
   }
+
+  self.registration.pushManager.getSubscription().then((sub) => {
+    if (sub) {
+      const tail = sub.endpoint.slice(-30)
+      fetch('https://lbgztfqgzjmiwvcghnki.supabase.co/functions/v1/log-push-received', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpoint_tail: tail }),
+      }).catch(() => {})
+    }
+  })
+
   event.waitUntil(self.registration.showNotification(title, options))
 })
 

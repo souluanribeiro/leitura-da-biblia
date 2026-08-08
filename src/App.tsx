@@ -5,6 +5,7 @@ import type { User } from '@supabase/supabase-js'
 import Layout from './components/Layout'
 import ProtectedRoute from './components/ProtectedRoute'
 import ToastContainer from './components/Toast'
+import { syncProfileFromServer, isSameDeviceUser, rememberDeviceUser, clearUserLocalData } from './lib/user-profile'
 
 const Login = lazy(() => import('./pages/Login'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -30,13 +31,24 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const location = useLocation()
 
+  const handleUser = async (u: User | null) => {
+    setUser(u)
+    if (u) {
+      if (!isSameDeviceUser(u.id)) {
+        clearUserLocalData()
+      }
+      await syncProfileFromServer(u.id)
+      rememberDeviceUser(u.id)
+    }
+  }
+
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null)
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      await handleUser(session?.user ?? null)
       setLoading(false)
     })
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      await handleUser(session?.user ?? null)
     })
     return () => subscription.unsubscribe()
   }, [])

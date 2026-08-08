@@ -92,7 +92,8 @@ export default function ReadingDayPage() {
   }, [dayNum])
 
   const loadAll = async () => {
-    const { data } = await supabase.from('reading_progress').select('day_number').eq('day_number', dayNum).eq('schedule_id', scheduleId).maybeSingle()
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data } = await supabase.from('reading_progress').select('day_number').eq('user_id', user?.id ?? '').eq('day_number', dayNum).eq('schedule_id', scheduleId).maybeSingle()
     const isCompleted = !!data
     setCompleted(isCompleted)
 
@@ -108,7 +109,7 @@ export default function ReadingDayPage() {
       setCheckedChapters(saved)
     }
 
-    const { data: noteData } = await supabase.from('notes').select('id, content').eq('day_number', dayNum).maybeSingle()
+    const { data: noteData } = await supabase.from('notes').select('id, content').eq('user_id', user?.id ?? '').eq('day_number', dayNum).maybeSingle()
     if (noteData) {
       setNoteContent(noteData.content)
       setNoteId(noteData.id)

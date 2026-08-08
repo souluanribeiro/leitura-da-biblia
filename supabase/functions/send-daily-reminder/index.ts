@@ -39,11 +39,14 @@ const motivationalMessages = [
   "Continue lendo, você está no caminho certo!",
 ]
 
-serve(async (_req) => {
+serve(async (req) => {
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
   )
+
+  const reqUrl = new URL(req.url)
+  const isTest = reqUrl.searchParams.get("test") === "1"
 
   const { data: subs, error } = await supabase
     .from("push_subscriptions")
@@ -58,13 +61,14 @@ serve(async (_req) => {
   let sent = 0
   const errors: string[] = []
   const timezoneStats: Record<string, number> = {}
+  const endpointsSent: string[] = []
 
   for (const sub of subs) {
     try {
       const tz = sub.timezone || "America/Sao_Paulo"
       const currentHour = getHourInTimezone(tz)
 
-      if (currentHour !== sub.preferred_hour) continue
+      if (!isTest && currentHour !== sub.preferred_hour) continue
 
       timezoneStats[tz] = (timezoneStats[tz] || 0) + 1
 
@@ -134,6 +138,7 @@ serve(async (_req) => {
         })
       )
       sent++
+      endpointsSent.push(sub.endpoint.slice(-30))
     } catch (e: any) {
       if (e.statusCode === 404 || e.statusCode === 410) {
         await supabase
@@ -146,5 +151,6 @@ serve(async (_req) => {
     }
   }
 
-  return new Response(JSON.stringify({ sent, errors, timezones: timezoneStats }))
+  console.log(`[send-daily-reminder] test=${isTest} sent=${sent} errors=${JSON.stringify(errors)}`)
+  return new Response(JSON.stringify({ sent, errors, timezones: timezoneStats, endpoints: endpointsSent }))
 })

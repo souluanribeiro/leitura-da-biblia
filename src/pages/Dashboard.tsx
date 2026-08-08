@@ -105,7 +105,8 @@ export default function Dashboard() {
   }, [completedDays])
 
   const loadProgress = async () => {
-    const { data, error: err } = await supabase.from('reading_progress').select('day_number').eq('schedule_id', currentSchedule).order('day_number')
+    const { data: { user } } = await supabase.auth.getUser()
+    const { data, error: err } = await supabase.from('reading_progress').select('day_number').eq('user_id', user?.id ?? '').eq('schedule_id', currentSchedule).order('day_number')
     if (err) {
       const cached = cacheGet<number[]>('completed_days_' + currentSchedule)
       if (cached) {
