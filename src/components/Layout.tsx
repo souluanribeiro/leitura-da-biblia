@@ -9,7 +9,7 @@ export default function Layout() {
 
   const linkClass = ({ isActive }: { isActive: boolean }) =>
     `flex flex-col items-center gap-0.5 text-xs px-3 py-2 rounded-xl transition-colors btn-ghost ${
-      isActive ? 'text-accent bg-bg-hover' : 'text-text-muted hover:text-text-secondary'
+      isActive ? 'text-accent bg-bg-hover' : 'text-text-primary hover:text-white'
     }`
 
   return (
@@ -39,7 +39,7 @@ export default function Layout() {
       </main>
 
       {!isAgent && (
-        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-bg-dark/95 backdrop-blur-sm border-t border-white/5 px-2 py-2 flex justify-around">
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-bg-bar/98 backdrop-blur-sm border-t border-white/5 px-2 py-2 flex justify-around">
           <NavLink to="/calendario" className={linkClass}>
             <CalendarDays size={20} />
             <span>Calendário</span>
