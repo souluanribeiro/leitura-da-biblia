@@ -13,12 +13,13 @@
 - [ ] **Knowledge base**: usuário cadastrando conteúdos aos poucos (Sheep avisa "assunto não encontrado" para temas ainda não adicionados — comportamento esperado)
 - [x] Teste final em dispositivo limpo: cadastro com confirmação de e-mail, login, dia 1 do plano (ok)
 
-## Adiado — push/lembrete diário
+## Push/lembrete diário
 
-- [ ] `VITE_VAPID_PUBLIC_KEY` no Vercel (production) — hoje ausente; sem isso `subscribeToPush` não ativa
-- [ ] Secrets na edge function `send-daily-reminder`: `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`
-- [ ] Agendar cron da `send-daily-reminder` (respeita `preferred_hour` por timezone)
-- [ ] Código já tem fallback seguro: sem a chave VAPID, push fica desativado (não quebra o app)
+- [x] `VITE_VAPID_PUBLIC_KEY` no Vercel (production, preview e development) + redeploy `dpl_5BvBwEAKJUZAQLtyVxnC2Z4FXR2r` — push ativo no app
+- [x] Secrets na edge function `send-daily-reminder`: `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (já existiam no Supabase)
+- [ ] **Cron**: agendar `send-daily-reminder` (Dashboard → Edge Functions → send-daily-reminder → Schedule, cron `0 * * * *`) — respeita `preferred_hour` por timezone
+- [ ] Teste no celular: Perfil → ativar lembrete → receber notificação no horário escolhido
+- [ ] Código tem fallback seguro: sem a chave VAPID, push fica desativado (não quebra o app)
 
 ---
 
