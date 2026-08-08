@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import { setReadingStartDate } from './reading-plan'
+import { setReadingStartDate, clearReadingStartDate } from './reading-plan'
 
 export interface UserProfile {
   name: string
@@ -103,6 +103,8 @@ export async function syncProfileFromServer(userId: string): Promise<void> {
 
     if (data.reading_start_date) {
       setReadingStartDate(new Date(data.reading_start_date))
+    } else {
+      clearReadingStartDate()
     }
   } catch { /* offline */ }
 }
