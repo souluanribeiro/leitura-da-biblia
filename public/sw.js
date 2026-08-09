@@ -83,7 +83,14 @@ self.addEventListener('fetch', (event) => {
 })
 
 self.addEventListener('push', (event) => {
-  const data = event.data ? event.data.json() : {}
+  let data = {}
+  if (event.data) {
+    try {
+      data = event.data.json()
+    } catch (e) {
+      data = {}
+    }
+  }
   const title = data.title || 'Leitura da Bíblia'
   const options = {
     body: data.body || 'Hora da leitura diária!',
@@ -99,7 +106,10 @@ self.addEventListener('push', (event) => {
       const tail = sub.endpoint.slice(-30)
       fetch('https://lbgztfqgzjmiwvcghnki.supabase.co/functions/v1/log-push-received', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZ3p0ZnFnemptaXd2Y2dobmtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1Nzk0NDMsImV4cCI6MjEwMDE1NTQ0M30.zTmTkt4Dbjv_MuKJr6m1kxwqw20nGO6KCzdPqH3olwA',
+        },
         body: JSON.stringify({ endpoint_tail: tail }),
       }).catch(() => {})
     }

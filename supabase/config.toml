@@ -6,3 +6,4 @@ send-daily-reminder = { verify_jwt = false }
 bible-agent = { verify_jwt = true }
 admin-operations = { verify_jwt = false }
 send-admin-notification = { verify_jwt = false }
+log-push-received = { verify_jwt = false }

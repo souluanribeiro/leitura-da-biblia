@@ -207,7 +207,7 @@ export default function Dashboard() {
   const pct = daysRead > 0 ? Math.round((daysRead / totalDays) * 100) : 0
   const isComplete = currentDay > 0 && completedDays.has(currentDay)
   const year = getReadingYear(currentDay)
-  const planComplete = false
+  const planComplete = totalDays > 0 && daysRead >= totalDays
   const startDate = getReadingStartDate()
   const daysSinceStart = startDate ? Math.floor((Date.now() - startDate.getTime()) / 86400000) + 1 : 0
   const unreadDays = Math.max(0, daysSinceStart - daysRead)

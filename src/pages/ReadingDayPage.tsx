@@ -175,9 +175,12 @@ export default function ReadingDayPage() {
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (!noteContent.trim()) return
     if (timerRef.current) clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => saveNote(noteContent), 1500)
+    if (noteContent.trim()) {
+      timerRef.current = setTimeout(() => saveNote(noteContent), 1500)
+    } else if (noteId) {
+      timerRef.current = setTimeout(() => saveNote(''), 1500)
+    }
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [noteContent, saveNote])
 

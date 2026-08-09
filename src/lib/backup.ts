@@ -42,6 +42,20 @@ export function exportProgress(): string {
   return JSON.stringify({ exported: new Date().toISOString(), version: CACHE_VERSION, data }, null, 2)
 }
 
+const ALLOWED_EXACT_KEYS = new Set(['reading_start_date', 'reading_schedule', 'app_theme', 'dashboard_compact'])
+const MAX_IMPORT_ITEMS = 2000
+
+function isAllowedKey(key: string): boolean {
+  return ALLOWED_EXACT_KEYS.has(key) || key.startsWith('checked_') || key.startsWith(CACHE_PREFIX)
+}
+
+function isValidValue(key: string, value: string): boolean {
+  if (key === 'reading_start_date') return !Number.isNaN(Date.parse(value))
+  if (key === 'reading_schedule' || key === 'app_theme' || key === 'dashboard_compact') return value.length <= 2000
+  if (key.startsWith('checked_')) return value === 'true' || value === 'false' || /^\d+$/.test(value)
+  return true
+}
+
 export function importProgress(jsonStr: string): { success: boolean; message: string } {
   try {
     const parsed = JSON.parse(jsonStr)
@@ -49,11 +63,15 @@ export function importProgress(jsonStr: string): { success: boolean; message: st
       return { success: false, message: 'Formato de arquivo inválido' }
     }
     let count = 0
+    let skipped = 0
     for (const [key, value] of Object.entries(parsed.data)) {
-      if (typeof value === 'string') {
-        localStorage.setItem(key, value)
-        count++
+      if (count >= MAX_IMPORT_ITEMS) break
+      if (typeof value !== 'string' || !isAllowedKey(key) || !isValidValue(key, value)) {
+        skipped++
+        continue
       }
+      localStorage.setItem(key, value)
+      count++
     }
     return { success: true, message: `${count} itens importados com sucesso` }
   } catch {

@@ -79,7 +79,7 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })
       }
-      await supabase
+      const { error: convError } = await supabase
         .from("conversations")
         .update({ is_deleted: true })
         .eq("id", conversationId)
@@ -89,7 +89,15 @@ serve(async (req) => {
         .delete()
         .eq("conversation_id", conversationId)
 
-      return new Response(JSON.stringify({ success: true, error: error?.message || null }), {
+      if (convError || error) {
+        console.error("delete_conversation error:", convError?.message, error?.message)
+        return new Response(JSON.stringify({ success: false, error: "Erro ao excluir a conversa" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
@@ -106,7 +114,15 @@ serve(async (req) => {
         .delete()
         .eq("id", messageId)
 
-      return new Response(JSON.stringify({ success: true, error: error?.message || null }), {
+      if (error) {
+        console.error("delete_message error:", error.message)
+        return new Response(JSON.stringify({ success: false, error: "Erro ao excluir a mensagem" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
@@ -118,15 +134,23 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })
       }
-      await supabase
+      const { error: historyError } = await supabase
         .from("chat_history")
         .delete()
         .eq("user_id", userId)
 
-      await supabase
+      const { error: convError } = await supabase
         .from("conversations")
         .update({ is_deleted: true })
         .eq("user_id", userId)
+
+      if (historyError || convError) {
+        console.error("delete_user error:", historyError?.message, convError?.message)
+        return new Response(JSON.stringify({ success: false, error: "Erro ao excluir o usuário" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

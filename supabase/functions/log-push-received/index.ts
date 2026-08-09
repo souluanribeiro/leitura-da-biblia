@@ -1,16 +1,55 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
+const ALLOWED_ORIGINS = ["https://leitura-da-biblia.vercel.app", "http://localhost:5173"]
+const LEGACY_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZ3p0ZnFnemptaXd2Y2dobmtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1Nzk0NDMsImV4cCI6MjEwMDE1NTQ0M30.zTmTkt4Dbjv_MuKJr6m1kxwqw20nGO6KCzdPqH3olwA"
+
+function isAuthorized(authHeader: string, apikeyHeader: string): boolean {
+  const allowed = new Set<string>()
+  for (const raw of [
+    Deno.env.get("SUPABASE_ANON_KEY"),
+    Deno.env.get("SUPABASE_PUBLISHABLE_KEYS"),
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
+    Deno.env.get("SUPABASE_SECRET_KEYS"),
+    Deno.env.get("CRON_SECRET"),
+    LEGACY_ANON_KEY,
+  ]) {
+    if (!raw) continue
+    for (const key of raw.split(",")) allowed.add(key.trim())
+  }
+  const value = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : apikeyHeader
+  return allowed.has(value)
+}
+
+function getCorsHeaders(origin: string | null) {
+  const allowed = ALLOWED_ORIGINS.includes(origin || "") ? origin : null
+  return {
+    "Access-Control-Allow-Origin": allowed || ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers": "authorization, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+  }
 }
 
 serve(async (req) => {
+  const origin = req.headers.get("origin")
+  const corsHeaders = getCorsHeaders(origin)
+
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders })
   }
+
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    return new Response(JSON.stringify({ ok: false, error: "Origin não permitida" }), { status: 403, headers: corsHeaders })
+  }
+
+  const authHeader = req.headers.get("authorization") || ""
+  const apikeyHeader = req.headers.get("apikey") || ""
+
+  if (!isAuthorized(authHeader, apikeyHeader)) {
+    return new Response(JSON.stringify({ ok: false, error: "Não autorizado" }), { status: 403, headers: corsHeaders })
+  }
+
   try {
     const { endpoint_tail } = await req.json()
     const supabase = createClient(
@@ -24,11 +63,11 @@ serve(async (req) => {
 
     if (error) {
       console.log(`[log-push-received] insert error: ${error.message}`)
-      return new Response(JSON.stringify({ ok: false, error: error.message }), { status: 500, headers: corsHeaders })
+      return new Response(JSON.stringify({ ok: false, error: "Erro interno" }), { status: 500, headers: corsHeaders })
     }
 
     return new Response(JSON.stringify({ ok: true }), { headers: corsHeaders })
   } catch (e: any) {
-    return new Response(JSON.stringify({ ok: false, error: String(e?.message || e) }), { status: 500, headers: corsHeaders })
+    return new Response(JSON.stringify({ ok: false, error: "Erro interno" }), { status: 500, headers: corsHeaders })
   }
 })
