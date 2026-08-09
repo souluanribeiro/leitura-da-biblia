@@ -140,7 +140,9 @@ export default function Notes() {
   const deleteNote = async (e: React.MouseEvent, noteId: string) => {
     e.stopPropagation()
     if (!confirm('Excluir esta anotação?')) return
-    await supabase.from('notes').delete().eq('id', noteId)
+    const user = (await supabase.auth.getUser()).data.user
+    if (!user) return
+    await supabase.from('notes').delete().eq('id', noteId).eq('user_id', user.id)
     setNotes(prev => prev.filter(n => n.id !== noteId))
   }
 

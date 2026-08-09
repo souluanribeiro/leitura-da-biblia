@@ -134,19 +134,22 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })
       }
-      const { error: historyError } = await supabase
-        .from("chat_history")
-        .delete()
-        .eq("user_id", userId)
+      // LGPD: remove todos os dados pessoais (tabelas que referenciam o usuário)
+      const tables = ["chat_history", "conversations", "reading_progress", "notes", "push_subscriptions", "error_logs"]
+      let failures: string[] = []
+      for (const table of tables) {
+        const { error } = await supabase.from(table).delete().eq("user_id", userId)
+        if (error) failures.push(`${table}: ${error.message}`)
+      }
+      const { error: profileError } = await supabase.from("profiles").delete().eq("id", userId)
+      if (profileError) failures.push(`profiles: ${profileError.message}`)
 
-      const { error: convError } = await supabase
-        .from("conversations")
-        .update({ is_deleted: true })
-        .eq("user_id", userId)
+      const { error: authError } = await supabase.auth.admin.deleteUser(userId, true)
+      if (authError) failures.push(`auth: ${authError.message}`)
 
-      if (historyError || convError) {
-        console.error("delete_user error:", historyError?.message, convError?.message)
-        return new Response(JSON.stringify({ success: false, error: "Erro ao excluir o usuário" }), {
+      if (failures.length > 0) {
+        console.error("delete_user partial errors:", failures.join(" | "))
+        return new Response(JSON.stringify({ success: false, error: "Erro parcial ao excluir o usuário" }), {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })

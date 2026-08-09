@@ -10,9 +10,6 @@ function isAuthorized(authHeader: string, apikeyHeader: string): boolean {
   for (const raw of [
     Deno.env.get("SUPABASE_ANON_KEY"),
     Deno.env.get("SUPABASE_PUBLISHABLE_KEYS"),
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY"),
-    Deno.env.get("SUPABASE_SECRET_KEYS"),
-    Deno.env.get("CRON_SECRET"),
     LEGACY_ANON_KEY,
   ]) {
     if (!raw) continue

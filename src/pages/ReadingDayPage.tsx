@@ -149,7 +149,7 @@ export default function ReadingDayPage() {
     setNoteStatus('saving')
     try {
       if (noteId) {
-        const { error } = await supabase.from('notes').update({ content, updated_at: new Date().toISOString() }).eq('id', noteId)
+        const { error } = await supabase.from('notes').update({ content, updated_at: new Date().toISOString() }).eq('id', noteId).eq('user_id', user.id)
         if (error) throw error
       } else {
         const { data, error } = await supabase.from('notes').insert({ user_id: user.id, day_number: dayNum, content }).select('id').single()
@@ -166,7 +166,7 @@ export default function ReadingDayPage() {
     if (!noteId) return
     const user = (await supabase.auth.getUser()).data.user
     if (!user) return
-    await supabase.from('notes').delete().eq('id', noteId)
+    await supabase.from('notes').delete().eq('id', noteId).eq('user_id', user.id)
     setNoteId(null)
     setNoteContent('')
     setNoteStatus('idle')

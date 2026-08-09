@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
-import { loadProfile, saveProfile, type UserProfile, getTheme, setTheme, type Theme } from '../lib/user-profile'
+import { loadProfile, saveProfile, type UserProfile, getTheme, setTheme, type Theme, clearUserLocalData } from '../lib/user-profile'
 import { getReadingStartDate, calcStreak, getTodayReadingDay, schedules, getScheduleName, getCurrentSchedule, setCurrentSchedule } from '../lib/reading-plan'
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, getSubscriptionStatus, updatePreferredHour } from '../lib/push'
 import { exportProgress, importProgress } from '../lib/backup'
@@ -194,6 +194,7 @@ export default function Profile() {
 
   async function handleLogout() {
     await supabase.auth.signOut()
+    clearUserLocalData()
     navigate('/login')
   }
 

@@ -12,7 +12,7 @@ function getHourInTimezone(timezone: string): number {
   const now = new Date()
   const formatter = new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
-    hour12: false,
+    hourCycle: "h23",
     timeZone: timezone,
   })
   return parseInt(formatter.format(now), 10)
@@ -40,6 +40,15 @@ const motivationalMessages = [
 ]
 
 serve(async (req) => {
+  const origin = req.headers.get("origin")
+  const ALLOWED_ORIGINS = ["https://leitura-da-biblia.vercel.app", "https://admin-app-two-orcin.vercel.app", "http://localhost:5173"]
+  const corsHeaders = {
+    "Access-Control-Allow-Origin": (origin && ALLOWED_ORIGINS.includes(origin)) ? origin : ALLOWED_ORIGINS[0],
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+    "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders })
+
   const supabase = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -51,26 +60,23 @@ serve(async (req) => {
   const authHeader = req.headers.get("authorization") || ""
   const apikeyHeader = req.headers.get("apikey") || ""
   const cronSecret = Deno.env.get("CRON_SECRET") || ""
-  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || ""
   const isCronCall =
-    authHeader === `Bearer ${cronSecret}` ||
-    apikeyHeader === cronSecret ||
-    authHeader === `Bearer ${serviceKey}` ||
-    apikeyHeader === serviceKey
+    (cronSecret.length > 0 && authHeader === `Bearer ${cronSecret}`) ||
+    (cronSecret.length > 0 && apikeyHeader === cronSecret)
 
   if (isTest) {
     const token = authHeader.replace(/^Bearer\s+/i, "")
     if (!token) {
       return new Response(JSON.stringify({ error: "Token de autenticação necessário" }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
     const { data: { user }, error: authError } = await supabase.auth.getUser(token)
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Token inválido ou expirado" }), {
         status: 401,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
     const { data: profile } = await supabase
@@ -81,13 +87,13 @@ serve(async (req) => {
     if (!profile?.is_admin) {
       return new Response(JSON.stringify({ error: "Acesso não autorizado" }), {
         status: 403,
-        headers: { "Content-Type": "application/json" },
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
     }
   } else if (!isCronCall) {
     return new Response(JSON.stringify({ error: "Acesso não autorizado" }), {
       status: 403,
-      headers: { "Content-Type": "application/json" },
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     })
   }
 
@@ -97,7 +103,9 @@ serve(async (req) => {
     .eq("active", true)
 
   if (error || !subs || subs.length === 0) {
-    return new Response(JSON.stringify({ sent: 0, error: error ? "Erro interno" : null }))
+    return new Response(JSON.stringify({ sent: 0, error: error ? "Erro interno" : null }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    })
   }
 
   const nowUtc = new Date()
@@ -195,5 +203,7 @@ serve(async (req) => {
   }
 
   console.log(`[send-daily-reminder] test=${isTest} sent=${sent} errors=${JSON.stringify(errors)}`)
-  return new Response(JSON.stringify({ sent, errors, timezones: timezoneStats, endpoints: endpointsSent }))
+  return new Response(JSON.stringify({ sent, errors, timezones: timezoneStats, endpoints: endpointsSent }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  })
 })

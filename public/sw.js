@@ -104,11 +104,13 @@ self.addEventListener('push', (event) => {
   self.registration.pushManager.getSubscription().then((sub) => {
     if (sub) {
       const tail = sub.endpoint.slice(-30)
+      const anonKey = '__SUPABASE_ANON_KEY__'
+      if (!anonKey || anonKey.indexOf('SUPABASE_ANON_KEY') !== -1) return
       fetch('https://lbgztfqgzjmiwvcghnki.supabase.co/functions/v1/log-push-received', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZ3p0ZnFnemptaXd2Y2dobmtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1Nzk0NDMsImV4cCI6MjEwMDE1NTQ0M30.zTmTkt4Dbjv_MuKJr6m1kxwqw20nGO6KCzdPqH3olwA',
+          'apikey': anonKey,
         },
         body: JSON.stringify({ endpoint_tail: tail }),
       }).catch(() => {})

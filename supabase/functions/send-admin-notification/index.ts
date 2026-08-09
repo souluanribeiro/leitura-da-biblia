@@ -65,13 +65,22 @@ serve(async (req) => {
       })
     }
 
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
     const { notificationId, testUserId } = await req.json()
 
     if (!notificationId && !testUserId) {
       return new Response(JSON.stringify({ error: "notificationId ou testUserId necessário" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }
 
+    if (testUserId && (typeof testUserId !== "string" || !UUID_RE.test(testUserId))) {
+      return new Response(JSON.stringify({ error: "testUserId inválido" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
+    }
+
     if (notificationId) {
+      if (typeof notificationId !== "string" || !UUID_RE.test(notificationId)) {
+        return new Response(JSON.stringify({ error: "notificationId inválido" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
+      }
+
       const { data: notif, error: notifError } = await supabase
         .from("admin_notifications")
         .select("*")
@@ -85,11 +94,25 @@ serve(async (req) => {
       if (notif.status === "sent") {
         return new Response(JSON.stringify({ error: "Notificação já enviada" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
       }
+      if (notif.status === "cancelled") {
+        return new Response(JSON.stringify({ error: "Notificação cancelada" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
+      }
+      if (notif.status === "sending") {
+        return new Response(JSON.stringify({ error: "Notificação já está em envio. Se ficou travada, cancele e recrie." }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } })
+      }
 
-      await supabase
+      // Reivindicação atômica: evita envio duplicado em corrida
+      const { data: claimed, error: claimError } = await supabase
         .from("admin_notifications")
         .update({ status: "sending" })
         .eq("id", notificationId)
+        .eq("status", "pending")
+        .select("id")
+        .maybeSingle()
+
+      if (claimError || !claimed) {
+        return new Response(JSON.stringify({ error: "Envio já em andamento" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } })
+      }
 
       let query = supabase.from("push_subscriptions").select("*").eq("active", true)
       if (notif.target === "active_readers") {
@@ -99,17 +122,41 @@ serve(async (req) => {
           .gte("day_number", 1)
         const userIds = [...new Set(readers?.map(r => r.user_id) || [])]
         if (userIds.length > 0) query = query.in("user_id", userIds)
+        else {
+          await supabase.from("admin_notifications").update({ status: "sent", sent_at: new Date().toISOString(), sent_count: 0 }).eq("id", notificationId).eq("status", "sending")
+          return new Response(JSON.stringify({ sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
+        }
+      } else if (notif.target === "inactive_readers") {
+        const since = new Date(Date.now() - 7 * 86400000).toISOString()
+        const { data: subsAll } = await supabase
+          .from("push_subscriptions")
+          .select("user_id")
+          .eq("active", true)
+        const subscribedIds = [...new Set(subsAll?.map(r => r.user_id) || [])]
+        if (subscribedIds.length > 0) {
+          const { data: recentRows } = await supabase
+            .from("reading_progress")
+            .select("user_id")
+            .gte("completed_at", since)
+          const recentIds = new Set(recentRows?.map(r => r.user_id) || [])
+          const inactiveIds = subscribedIds.filter(id => !recentIds.has(id))
+          if (inactiveIds.length > 0) query = query.in("user_id", inactiveIds)
+          else {
+            await supabase.from("admin_notifications").update({ status: "sent", sent_at: new Date().toISOString(), sent_count: 0 }).eq("id", notificationId).eq("status", "sending")
+            return new Response(JSON.stringify({ sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
+          }
+        }
       }
 
       const { data: subs, error: subsError } = await query
 
       if (subsError || !subs) {
-        await supabase.from("admin_notifications").update({ status: "pending" }).eq("id", notificationId)
+        await supabase.from("admin_notifications").update({ status: "pending" }).eq("id", notificationId).eq("status", "sending")
         return new Response(JSON.stringify({ error: "Falha ao buscar inscrições" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } })
       }
 
       if (subs.length === 0) {
-        await supabase.from("admin_notifications").update({ status: "sent", sent_at: new Date().toISOString(), sent_count: 0 }).eq("id", notificationId)
+        await supabase.from("admin_notifications").update({ status: "sent", sent_at: new Date().toISOString(), sent_count: 0 }).eq("id", notificationId).eq("status", "sending")
         return new Response(JSON.stringify({ sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
       }
 
@@ -139,6 +186,7 @@ serve(async (req) => {
         .from("admin_notifications")
         .update({ status: "sent", sent_at: new Date().toISOString(), sent_count: sent, error_count: errors })
         .eq("id", notificationId)
+        .eq("status", "sending")
 
       return new Response(JSON.stringify({ sent, errors }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
     }

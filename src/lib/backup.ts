@@ -52,7 +52,16 @@ function isAllowedKey(key: string): boolean {
 function isValidValue(key: string, value: string): boolean {
   if (key === 'reading_start_date') return !Number.isNaN(Date.parse(value))
   if (key === 'reading_schedule' || key === 'app_theme' || key === 'dashboard_compact') return value.length <= 2000
-  if (key.startsWith('checked_')) return value === 'true' || value === 'false' || /^\d+$/.test(value)
+  if (key.startsWith('checked_')) {
+    if (value === 'true' || value === 'false' || /^\d+$/.test(value)) return true
+    try {
+      const obj = JSON.parse(value)
+      return typeof obj === 'object' && obj !== null && !Array.isArray(obj) &&
+        Object.values(obj).every(v => typeof v === 'boolean')
+    } catch {
+      return false
+    }
+  }
   return true
 }
 
