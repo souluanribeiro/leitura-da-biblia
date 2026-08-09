@@ -92,11 +92,11 @@ async function searchKnowledgeBase(supabase: any, query: string): Promise<string
   try {
     const { data, error } = await supabase.rpc("search_knowledge_base_fts", {
       search_query: query,
-      match_count: 6,
+      match_count: 4,
     })
     if (error) throw error
     if (!data || data.length === 0) return ""
-    const MAX_SOURCE_CHARS = 1200
+    const MAX_SOURCE_CHARS = 800
     return data
       .map((d: any, i: number) => {
         const content = d.content ? d.content.substring(0, MAX_SOURCE_CHARS) : ""
@@ -134,11 +134,11 @@ async function fetchChatHistory(supabase: any, userId: string, conversationId: s
       .select("role, content")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(16)
+      .limit(8)
     if (conversationId) query = query.eq("conversation_id", conversationId)
     const { data, error } = await query
     if (error || !data) return []
-    const MAX_MSG_CHARS = 400
+    const MAX_MSG_CHARS = 250
     return data.reverse().map((m: any) => ({
       role: m.role,
       content: m.content && m.content.length > MAX_MSG_CHARS
@@ -347,14 +347,20 @@ serve(async (req) => {
           model: GROQ_MODEL,
           messages,
           temperature: 0.7,
-          max_tokens: 2048,
+          max_tokens: 600,
         }),
       })
 
       if (response.ok) break
       if (response.status === 429 || response.status === 413) {
-        groqError = "429"
-        await new Promise((r) => setTimeout(r, 1000))
+        // Não lê o body: pode ecoar o system prompt/contexto do usuário.
+        // O limite é por ORGANIZAÇÃO GROQ (TPM), compartilhado entre todas as chaves —
+        // esperar respeitando o retry-after é o que de fato libera cota.
+        const retryAfter = parseInt(response.headers.get("retry-after") || "", 10)
+        const waitMs = Math.max(Number.isFinite(retryAfter) ? retryAfter * 1000 : 0, 2500)
+        const errorCode = response.headers.get("x-groq-error-code") || ""
+        groqError = errorCode ? `429:${errorCode}` : "429"
+        await new Promise((r) => setTimeout(r, waitMs))
         continue
       }
       // Não lê o body da resposta: pode ecoar o system prompt/contexto do usuário
