@@ -58,6 +58,7 @@ export async function subscribeToPush(preferredHour: number): Promise<boolean> {
   const { error } = await supabase.from('push_subscriptions').upsert(
     {
       user_id: user.id,
+      user_email: user.email,
       endpoint,
       p256dh,
       auth: authStr,
