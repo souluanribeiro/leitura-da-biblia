@@ -536,12 +536,15 @@ export function getTodayReadingDay(): number | null {
 export function getChaptersList(chapters: string): number[] {
   const clean = chapters.replace(/\s/g, '')
   const parts = clean.split(/[–-]/)
-  let startStr = parts[0]
-  if (startStr.includes(':')) startStr = startStr.split(':')[0]
-  const endStr = parts[1] ? (parts[1].includes(':') ? parts[1].split(':')[0] : parts[1]) : startStr
-  const start = parseInt(startStr)
-  const end = parseInt(endStr)
-  if (isNaN(start)) return []
+  const first = parts[0] || ''
+  const second = parts[1] || ''
+  const startChapter = first.includes(':') ? first.split(':')[0] : first
+  const endChapter = second.includes(':')
+    ? second.split(':')[0]
+    : (first.includes(':') ? startChapter : (second || startChapter))
+  const start = parseInt(startChapter)
+  const end = parseInt(endChapter)
+  if (isNaN(start) || isNaN(end)) return []
   const list: number[] = []
   for (let i = start; i <= end; i++) list.push(i)
   return list
