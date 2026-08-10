@@ -232,7 +232,7 @@ export default function ReadingDayPage() {
           }`}
         >
           <CheckCircle size={16} />
-          {completed ? 'Concluído' : 'Marcar como lido'}
+          {completed ? 'Concluído' : 'Concluir'}
         </button>
       </div>
 
