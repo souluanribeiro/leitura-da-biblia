@@ -565,11 +565,9 @@ export default function Dashboard() {
 
       <div className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden">
         <div className={`${compact ? 'p-3' : 'p-4'} border-b border-white/5 flex items-center justify-between`}>
-          <div className="flex items-center gap-2">
-            <div>
-              <h2 className="font-semibold text-text-primary">Leitura atual</h2>
-              <p className="text-xs text-text-muted">Dia {currentDay} do plano{year > 1 ? ` (Ano ${year})` : ''}</p>
-            </div>
+          <div className="pl-7">
+            <h2 className="font-semibold text-text-primary">Leitura atual</h2>
+            <p className="text-xs text-text-muted">Dia {currentDay} do plano{year > 1 ? ` (Ano ${year})` : ''}</p>
           </div>
           <button
             onClick={() => toggleComplete(currentDay)}
