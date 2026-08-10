@@ -58,36 +58,6 @@ async function fetchAgentConfig(supabase: any) {
   }
 }
 
-async function checkRateLimit(supabase: any, userId: string, dailyLimit: number, burstLimit: number) {
-  const now = new Date()
-  const dayStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate())).toISOString()
-  const minuteAgo = new Date(now.getTime() - 60_000).toISOString()
-
-  const daily = await supabase
-    .from("chat_history")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("role", "user")
-    .gte("created_at", dayStart)
-
-  const burst = await supabase
-    .from("chat_history")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", userId)
-    .eq("role", "user")
-    .gte("created_at", minuteAgo)
-
-  const dailyCount = daily.count ?? 0
-  const burstCount = burst.count ?? 0
-  return {
-    allowed: dailyCount < dailyLimit && burstCount < burstLimit,
-    dailyCount,
-    dailyLimit,
-    burstCount,
-    burstLimit,
-  }
-}
-
 async function searchKnowledgeBase(supabase: any, query: string): Promise<string> {
   try {
     const { data, error } = await supabase.rpc("search_knowledge_base_fts", {
@@ -129,14 +99,14 @@ async function fetchUserNotes(supabase: any, userId: string) {
 
 async function fetchChatHistory(supabase: any, userId: string, conversationId: string | null) {
   try {
-    let query = supabase
+    if (!conversationId) return []
+    const { data, error } = await supabase
       .from("chat_history")
       .select("role, content")
       .eq("user_id", userId)
+      .eq("conversation_id", conversationId)
       .order("created_at", { ascending: false })
       .limit(8)
-    if (conversationId) query = query.eq("conversation_id", conversationId)
-    const { data, error } = await query
     if (error || !data) return []
     const MAX_MSG_CHARS = 250
     return data.reverse().map((m: any) => ({
@@ -252,12 +222,28 @@ serve(async (req) => {
       })
     }
 
-    // Proteção anti-abuso — limite diário e por minuto por usuário
-    const rateLimit = await checkRateLimit(supabase, userId, agentConfig.daily_message_limit, agentConfig.burst_message_limit)
-    if (!rateLimit.allowed) {
-      const hitDaily = rateLimit.dailyCount >= rateLimit.dailyLimit
+    // Proteção anti-abuso — limite diário e por minuto por usuário.
+    // RPC atômica: conta, verifica e grava a mensagem na MESMA transação,
+    // fechando a corrida entre requests simultâneos.
+    const { data: rateLimit, error: rateLimitError } = await supabase.rpc("log_user_message", {
+      p_user_id: userId,
+      p_content: message,
+      p_user_email: user?.email || "",
+      p_conversation_id: conversationId || null,
+      p_daily_limit: agentConfig.daily_message_limit,
+      p_burst_limit: agentConfig.burst_message_limit,
+    })
+    if (rateLimitError) {
+      console.error("Rate limit RPC error:", rateLimitError)
+      return new Response(JSON.stringify({ error: "Erro interno do servidor" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+    if (!rateLimit?.allowed) {
+      const hitDaily = (rateLimit?.daily_count ?? 0) >= (rateLimit?.daily_limit ?? 0)
       const reply = hitDaily
-        ? `Você atingiu o limite diário de ${rateLimit.dailyLimit} perguntas. Volte amanhã para continuar conversando com o ${agentName}.`
+        ? `Você atingiu o limite diário de ${rateLimit.daily_limit} perguntas. Volte amanhã para continuar conversando com o ${agentName}.`
         : `Você está enviando perguntas rápido demais. Aguarde um instante e tente novamente.`
       return new Response(JSON.stringify({ error: reply }), {
         status: 429,
@@ -321,8 +307,6 @@ serve(async (req) => {
       "[/DADOS DO USUÁRIO]"
     messages.push({ role: "user", content: userDataBlock })
     messages.push({ role: "user", content: `<usuario>${message}</usuario>` })
-
-    await saveChatMessage(supabase, userId, user?.email || "", "user", message, conversationId)
 
     // Chamada ao Groq com rodízio de chaves + retry em caso de 429
     let lastKeyIndex = -1

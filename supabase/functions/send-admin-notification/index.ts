@@ -1,12 +1,9 @@
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 import webPush from "https://esm.sh/web-push@3.6.7"
+import { setupVapid, sendNotificationById } from "../_shared/push.ts"
 
-const vapidEmail = Deno.env.get("VAPID_EMAIL")!
-const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY")!
-const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY")!
-
-webPush.setVapidDetails(vapidEmail, vapidPublicKey, vapidPrivateKey)
+setupVapid()
 
 const ALLOWED_ORIGINS = ["https://admin-app-two-orcin.vercel.app", "http://localhost:5173"]
 
@@ -81,114 +78,12 @@ serve(async (req) => {
         return new Response(JSON.stringify({ error: "notificationId inválido" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
       }
 
-      const { data: notif, error: notifError } = await supabase
-        .from("admin_notifications")
-        .select("*")
-        .eq("id", notificationId)
-        .single()
+      const result = await sendNotificationById(supabase, notificationId)
 
-      if (notifError || !notif) {
-        return new Response(JSON.stringify({ error: "Notificação não encontrada" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } })
-      }
-
-      if (notif.status === "sent") {
-        return new Response(JSON.stringify({ error: "Notificação já enviada" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
-      }
-      if (notif.status === "cancelled") {
-        return new Response(JSON.stringify({ error: "Notificação cancelada" }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } })
-      }
-      if (notif.status === "sending") {
-        return new Response(JSON.stringify({ error: "Notificação já está em envio. Se ficou travada, cancele e recrie." }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } })
-      }
-
-      // Reivindicação atômica: evita envio duplicado em corrida
-      const { data: claimed, error: claimError } = await supabase
-        .from("admin_notifications")
-        .update({ status: "sending" })
-        .eq("id", notificationId)
-        .eq("status", "pending")
-        .select("id")
-        .maybeSingle()
-
-      if (claimError || !claimed) {
-        return new Response(JSON.stringify({ error: "Envio já em andamento" }), { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } })
-      }
-
-      let query = supabase.from("push_subscriptions").select("*").eq("active", true)
-      if (notif.target === "active_readers") {
-        const { data: readers } = await supabase
-          .from("reading_progress")
-          .select("user_id")
-          .gte("day_number", 1)
-        const userIds = [...new Set(readers?.map(r => r.user_id) || [])]
-        if (userIds.length > 0) query = query.in("user_id", userIds)
-        else {
-          await supabase.from("admin_notifications").update({ status: "sent", sent_at: new Date().toISOString(), sent_count: 0 }).eq("id", notificationId).eq("status", "sending")
-          return new Response(JSON.stringify({ sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
-        }
-      } else if (notif.target === "inactive_readers") {
-        const since = new Date(Date.now() - 7 * 86400000).toISOString()
-        const { data: subsAll } = await supabase
-          .from("push_subscriptions")
-          .select("user_id")
-          .eq("active", true)
-        const subscribedIds = [...new Set(subsAll?.map(r => r.user_id) || [])]
-        if (subscribedIds.length > 0) {
-          const { data: recentRows } = await supabase
-            .from("reading_progress")
-            .select("user_id")
-            .gte("completed_at", since)
-          const recentIds = new Set(recentRows?.map(r => r.user_id) || [])
-          const inactiveIds = subscribedIds.filter(id => !recentIds.has(id))
-          if (inactiveIds.length > 0) query = query.in("user_id", inactiveIds)
-          else {
-            await supabase.from("admin_notifications").update({ status: "sent", sent_at: new Date().toISOString(), sent_count: 0 }).eq("id", notificationId).eq("status", "sending")
-            return new Response(JSON.stringify({ sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
-          }
-        }
-      }
-
-      const { data: subs, error: subsError } = await query
-
-      if (subsError || !subs) {
-        await supabase.from("admin_notifications").update({ status: "pending" }).eq("id", notificationId).eq("status", "sending")
-        return new Response(JSON.stringify({ error: "Falha ao buscar inscrições" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } })
-      }
-
-      if (subs.length === 0) {
-        await supabase.from("admin_notifications").update({ status: "sent", sent_at: new Date().toISOString(), sent_count: 0 }).eq("id", notificationId).eq("status", "sending")
-        return new Response(JSON.stringify({ sent: 0 }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
-      }
-
-      let sent = 0
-      let errors = 0
-
-      for (const sub of subs) {
-        try {
-          await webPush.sendNotification(
-            { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-            JSON.stringify({
-              title: notif.title,
-              body: notif.message,
-              url: "/",
-            })
-          )
-          sent++
-        } catch (e: any) {
-          if (e.statusCode === 404 || e.statusCode === 410) {
-            await supabase.from("push_subscriptions").update({ active: false }).eq("id", sub.id)
-          }
-          errors++
-        }
-      }
-
-      await supabase
-        .from("admin_notifications")
-        .update({ status: "sent", sent_at: new Date().toISOString(), sent_count: sent, error_count: errors })
-        .eq("id", notificationId)
-        .eq("status", "sending")
-
-      return new Response(JSON.stringify({ sent, errors }), { headers: { ...corsHeaders, "Content-Type": "application/json" } })
+      return new Response(
+        JSON.stringify(result.code >= 400 ? { error: result.error } : { sent: result.sent, errors: result.errors }),
+        { status: result.code, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      )
     }
 
     if (testUserId) {

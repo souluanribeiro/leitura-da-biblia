@@ -1,6 +1,6 @@
 # Roadmap — Leitura da Bíblia
 
-> Atualizado em 2026-08-08. Backlog e pendências registradas durante a preparação para o lançamento.
+> Atualizado em 2026-08-09. Backlog e pendências registradas durante a preparação para o lançamento.
 
 ---
 
@@ -17,9 +17,10 @@
 
 - [x] `VITE_VAPID_PUBLIC_KEY` no Vercel (production, preview e development) + redeploy `dpl_5BvBwEAKJUZAQLtyVxnC2Z4FXR2r` — push ativo no app
 - [x] Secrets na edge function `send-daily-reminder`: `VAPID_EMAIL`, `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` (já existiam no Supabase)
-- [x] **Cron**: `send-daily-reminder-hourly` agendado e ativo (`0 * * * *`) — respeita `preferred_hour` por timezone
+- [x] **Cron**: `send-daily-reminder-hourly` agendado e ativo (`0 * * * *`) — respeita `preferred_hour` por timezone; usa `CRON_SECRET` no Vault (migrations 029/030)
 - [x] Teste: push comprovado no computador (notificação exibida + log em `push_received_log`). No Galaxy A31 não aparece — limitação do aparelho (testado com serviço independente de web push; o aparelho não recebe push de nenhum serviço)
 - [x] Código tem fallback seguro: sem a chave VAPID, push fica desativado (não quebra o app)
+- [x] Admin Push: inscrições mostram **e-mail do usuário** (migration 032), abas Ativas/Inativas, botão de limpar inscrições antigas
 
 ---
 

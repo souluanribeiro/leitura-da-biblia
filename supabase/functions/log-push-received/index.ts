@@ -2,15 +2,12 @@ import { serve } from "https://deno.land/std@0.177.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const ALLOWED_ORIGINS = ["https://leitura-da-biblia.vercel.app", "http://localhost:5173"]
-const LEGACY_ANON_KEY =
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxiZ3p0ZnFnemptaXd2Y2dobmtpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1Nzk0NDMsImV4cCI6MjEwMDE1NTQ0M30.zTmTkt4Dbjv_MuKJr6m1kxwqw20nGO6KCzdPqH3olwA"
 
 function isAuthorized(authHeader: string, apikeyHeader: string): boolean {
   const allowed = new Set<string>()
   for (const raw of [
     Deno.env.get("SUPABASE_ANON_KEY"),
     Deno.env.get("SUPABASE_PUBLISHABLE_KEYS"),
-    LEGACY_ANON_KEY,
   ]) {
     if (!raw) continue
     for (const key of raw.split(",")) allowed.add(key.trim())

@@ -149,19 +149,31 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - **~4 segundos** de resposta média
 
 ### Admin App (`admin-app/`)
-- **URL:** https://admin-app-two-orcin.vercel.app
-- **Páginas:** Login, Dashboard, Knowledge Base, Prompt Editor, Logs, Settings
+- **URL:** https://admin-app-two-orcin.vercel.app (projeto Vercel: `admin-app`)
+- **Páginas:** Login, Dashboard, Knowledge Base, Prompt Editor, Logs, Erros, Push, Leituras, Disparar, Configurações
 - **Settings:** Foto do agente (base64), nome, descrição, sugestões
 - **Knowledge Base:** CRUD de artigos com título, conteúdo, keywords — **única fonte de conhecimento do Sheep**
 - **Prompt Editor:** Edição do system prompt do agente (com dica de placeholders)
-- **Logs:** Visualização do histórico de conversas
+- **Logs:** Histórico de conversas (paginação por cursor)
+- **Erros:** `error_logs` com paginação e checagem `res.ok`
+- **Push:** lista `push_subscriptions` com **e-mail do usuário**, abas Ativas/Inativas, botão de limpar inscrições antigas
+- **Leituras:** estatísticas de leitura dos usuários
+- **Disparar:** envio manual de notificações admin
 - **Acesso:** restrito a usuários com `profiles.is_admin = true`
+
+### Admin user
+- **E-mail:** `luanribeiroterapeuta@gmail.com`
+- **id no projeto `lbgztfqgzjmiwvcghnki`:** `417e9bba-583e-454f-bf04-40cfd127f3af` — **use SEMPRE este id** (o id `7446cd05-...` é de outro projeto e não existe aqui)
+- **Confirmar admin:** `UPDATE profiles SET is_admin = true WHERE id = '417e9bba-583e-454f-bf04-40cfd127f3af';`
+- **Reset de senha (SQL Editor do `lbgztfqgzjmiwvcghnki`):** `UPDATE auth.users SET encrypted_password = crypt('SENHA', gen_salt('bf', 10)), updated_at = now() WHERE id = '417e9bba-583e-454f-bf04-40cfd127f3af';`
+- Usuário loga no app com **Google** (conta sem senha de e-mail originalmente); o admin-app usa email/senha, então a senha precisa ser definida via SQL.
 
 ### Autenticação
 - Google OAuth + email/senha via Supabase
 - ProtectedRoute + Layout wrapper
 - Toggle de visibilidade da senha
 - Link "Esqueceu a senha?" → modo redefinição com email
+- **Em 09/08:** login do admin-app parou com "Email ou senha incorretos" porque a senha havia sido definida no projeto errado. Corrigido resetando a senha no projeto `lbgztfqgzjmiwvcghnki`. Depois deu "Acesso restrito apenas para administradores" porque o `is_admin` foi aplicado com o id errado (`7446cd05...` do projeto antigo). Corrigido aplicando no id correto (`417e9bba-...`).
 
 ### API de Vídeos
 - `src/lib/jw-media.ts`: busca `GETPUBMEDIALINKS` da API pública JW.ORG
@@ -170,6 +182,9 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 ### Notificações Push
 - `src/lib/push.ts` + Supabase edge function `send-daily-reminder`
 - VAPID keys no `.env`
+- **Cron** `send-daily-reminder-hourly` (`0 * * * *`) via pg_cron + pg_net, usando `CRON_SECRET` do Vault (migrations 029/030) — não usa mais a service role key
+- **Inscrição grava `user_email`** (migration 032) para o admin mostrar e-mail em vez de uuid
+- **Admin pode excluir** inscrições antigas/inativas (policy 032)
 - GitHub Actions workflow para envio diário
 
 ### Compartilhar
@@ -194,11 +209,13 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 ## Supabase
 
 - **Projeto:** `lbgztfqgzjmiwvcghnki`
-- **Tabelas:** `reading_progress`, `notes`, `push_subscriptions`, `profiles` (com `reading_start_date`, `is_admin`), `chat_history` (com `conversation_id`), `conversations`, `knowledge_base`, `agent_config`
-- **Edge Functions:** `bible-agent` (`verify_jwt=true`), `send-daily-reminder` (`verify_jwt=false`, cron), `admin-operations` (`verify_jwt=false` com auth+admin check manual), `send-admin-notification` (`verify_jwt=false` com auth+admin check manual)
+- **Tabelas:** `reading_progress`, `notes`, `push_subscriptions` (com `user_email`), `profiles` (com `reading_start_date`, `is_admin`, foto/nome/idade/batismo), `chat_history` (com `conversation_id`), `conversations`, `knowledge_base`, `agent_config`, `error_logs`, `push_received_log`, `admin_notifications`
+- **Edge Functions:** `bible-agent` (`verify_jwt=true`), `send-daily-reminder` (`verify_jwt=false`, cron com CRON_SECRET), `admin-operations` (`verify_jwt=false` com auth+admin check manual), `send-admin-notification` (`verify_jwt=false` com auth+admin check manual)
 - **Auth trigger:** cria perfil automaticamente no signup
+- **Rotação de chaves Supabase em 09/08:** chaves da API (incluindo anon) foram rotacionadas — anon key atual no `.env` e no Vercel; precisa de redeploy se rotacionar de novo
+- **Extensões:** `pg_cron`, `pg_net`, `supabase_vault`
 
-### Migrations
+### Migrations (tudo aplicado no `lbgztfqgzjmiwvcghnki`)
 - `002_add_reading_start_date.sql`
 - `003_add_chat_history.sql`
 - `004_knowledge_base.sql` — tabela knowledge_base + RLS admin
@@ -206,16 +223,23 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - `006_conversations.sql` — tabela conversations + conversation_id no chat_history
 - `018_knowledge_base_fts.sql` — search_vector + RPC FTS (v1, plainto_tsquery)
 - `023_knowledge_base_fts_v2_and_trigger.sql` — FTS v2 (OR de termos) + trigger de search_vector
+- `027_security_hardening.sql` — REVOKE is_admin de anon/authenticated, is_admin() SECURITY DEFINER com search_path fixo, RLS em push_received_log, WITH CHECK em notes/conversations/push_subscriptions, cron com Vault
+- `028_fix_is_admin_rls.sql` — correção definitiva: is_admin não pode mudar via UPDATE do usuário; promoção exige service_role
+- `029_cron_secret.sql` — troca o segredo do cron para `CRON_SECRET` no Vault (privilégio mínimo)
+- `030_install_pg_net.sql` — instala a extensão pg_net
+- `031_admin_read_chats_and_lock_chat_role.sql` — admin lê chat_history/conversations; INSERT de chat_history restrito a role='user' (bloqueia forjar resposta do agente)
+- `032_push_subscriptions_email_admin.sql` — coluna user_email + backfill + policy de DELETE para admin
 
 ---
 
 ## API Keys e Segredos
 
-- **Groq API Key:** armazenada como secret `GROQ_API_KEYS`
+- **Groq API Key:** armazenada como secret `GROQ_API_KEYS` (10 keys, separadas por vírgula)
 - **Modelo:** `llama-3.3-70b-versatile` (Groq)
-- **Limite:** 30 RPM por key (Groq free tier)
-- **Rotação:** automática entre múltiplas keys separadas por vírgula
-- **Rate limit handling:** retry automático com próxima key em caso de 429
+- **IMPORTANTE (09/08):** o 429 "Muitas requisições" era **limite por ORGANIZAÇÃO GROQ** (`org_01kygrqb29f78svf47nv7qwed4`), não por key — as 10 keys compartilham o mesmo balde de **8.000 TPM/min**. Rotação de key não multiplica o limite. Para aumentar é preciso outra conta/org ou plano pago.
+- **Ajustes para caber no TPM (commit `dc2f373`):** respostas até ~600 tokens (antes 2048) e memória de conversa dos últimos **8** msgs (era 16). Trade-off: respostas longas podem truncar, mas as curtas do dia a dia ficam intactas.
+- **Rate limit handling:** retry automático com próxima key em caso de 429 (com backoff)
+- **Vault (Supabase):** `CRON_SECRET` usado pelo cron de push (privilégio mínimo)
 
 ---
 
@@ -235,9 +259,11 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 12. **Onboarding:** multi-step com persistência
 13. **Bíblia copyright:** links externos para wol.jw.org
 14. **Baptism anniversary:** banner + notificação
-15. **Agente IA:** Groq (não Gemini) com rotação de keys para evitar rate limit
+15. **Agente IA:** Groq (não Gemini) com rotação de keys para evitar rate limit — mas o limite real é por **organização** (8.000 TPM compartilhado entre todas as keys)
 16. **Controle total do agente:** prompt 100% do admin (sem prompt padrão no código) e fontes 100% do admin (knowledge_base, sem WOL). Ver `RELATORIO_SESSAO_2026-08-03.md`
 17. **Busca na base:** FTS v2 com OR de termos (tolerante a linguagem natural); trigger mantém `search_vector` atualizado ao editar artigos no admin
+18. **Auditoria v2 (09/08):** 11 itens de segurança corrigidos e deployados — prompt injection no agente, role `assistant` que podia ser forjada via RLS (migration 031), admin não lia conversas, máquina de estados das notificações, CSP sem `unsafe-inline`, etc.
+19. **Login admin-app:** sempre conferir o **id do usuário no projeto correto** (`lbgztfqgzjmiwvcghnki` = `417e9bba-...`); o antigo `7446cd05-...` pertence ao projeto `iqtqtxlqzveixxxunnvj`
 
 ---
 
@@ -274,12 +300,36 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - `src/pages/Settings.tsx` — Foto, nome, descrição, sugestões do agente
 - `src/pages/KnowledgeBase.tsx` — CRUD de artigos
 - `src/pages/PromptEditor.tsx` — Editor do system prompt
-- `src/pages/Logs.tsx` — Histórico de conversas
+- `src/pages/Logs.tsx` — Histórico de conversas (paginação por cursor)
+- `src/pages/ErrorLogs.tsx` — Logs de erro
+- `src/pages/PushNotifications.tsx` — Push com e-mail, abas Ativas/Inativas, limpar antigas
+- `src/pages/Notifications.tsx` — Disparo de notificações admin
+- `src/pages/ReadingStats.tsx` — Estatísticas de leitura
 - `src/pages/Dashboard.tsx` — Stats do admin
 - `src/pages/Login.tsx` — Login com Google + email/senha
 - `src/components/Layout.tsx` — Sidebar de navegação
-- `src/lib/supabase.ts` — Cliente Supabase hardcoded (lbgztfqgzjmiwvcghnki)
+- `src/lib/supabase.ts` — Cliente Supabase (projeto `lbgztfqgzjmiwvcghnki`)
 
 ---
 
-*Última atualização: 03/08/2026*
+*Última atualização: 09/08/2026*
+
+## Estado recente (09/08/2026)
+
+### Leitura da Bíblia — últimos commits (`main`)
+- `f33d3f7` — Push: grava `user_email` na inscrição + migration 032 (coluna + backfill + policy DELETE admin)
+- `dc2f373` — Sheep: `max_tokens 600`, histórico 8 msgs, KB 4 fontes, backoff com retry-after no 429 (limite por org GROQ)
+- `6d6a983` — Auditoria v2: prompt injection, estados de notificação, LGPD delete_user, RLS admin lê chats, paginação, CSP, backup de checkmarks
+- `d16498d` — Instala pg_net (cron do send-daily-reminder falhava sem schema `net`)
+- `3a60c4f` — Auditoria de segurança: RLS hardened, cron com CRON_SECRET no Vault, auth em edge functions, fixes do frontend
+
+### admin-app — últimos commits (`main`)
+- `2a7008f` — Push: mostra e-mail do usuário, abas Ativas/Inativas, botão limpar inscrições antigas
+- `e4c2e0d` — Auditoria v2: JSON.parse seguro, res.ok nas ações, paginação por cursor, CSP sem unsafe-inline, MIME do avatar, signOut seguro
+- `9f1c467` — Admin: campos de limite diário e por minuto do Sheep (anti-abuso configuravel)
+- `cca2fa4` — Logs mostram e-mail do usuário
+
+### Incidência de 09/08 — login do admin-app
+1. **"Email ou senha incorretos"** — senha havia sido definida no projeto **errado** (`iqtqtxlqzveixxxunnvj`). Corrigido resetando no projeto correto `lbgztfqgzjmiwvcghnki`.
+2. **"Acesso restrito apenas para administradores"** — `is_admin` aplicado com o **id errado** (`7446cd05...` do projeto antigo). Corrigido aplicando no id correto `417e9bba-583e-454f-bf04-40cfd127f3af`.
+- **Lição:** os dois projetos têm ids de usuário diferentes para o mesmo e-mail. Sempre verificar o id no projeto que se está mexendo.

@@ -203,11 +203,12 @@ export default function BibleAgent() {
       let convId = activeConversationId
       if (!convId) {
         const conv = await createConversation(userId, msg.substring(0, 50))
-        if (conv) {
-          convId = conv.id
-          setActiveConversationId(convId)
-          setConversations([conv, ...conversations])
+        if (!conv) {
+          throw new Error('Não foi possível iniciar a conversa. Tente novamente.')
         }
+        convId = conv.id
+        setActiveConversationId(convId)
+        setConversations([conv, ...conversations])
       }
 
       const reply = await askBibleAgent({
