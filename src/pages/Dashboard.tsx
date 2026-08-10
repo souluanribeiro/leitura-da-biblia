@@ -566,7 +566,7 @@ export default function Dashboard() {
       <div className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden">
         <div className={`${compact ? 'p-3' : 'p-4'} border-b border-white/5 flex items-center justify-between`}>
           <div className="flex items-center gap-2">
-            <img src="/favicon.svg" alt="" className="w-[18px] h-[18px] shrink-0" />
+            <img src="/favicon.png" alt="" className="w-[18px] h-[18px] shrink-0" />
             <div>
               <h2 className="font-semibold text-text-primary">Leitura atual</h2>
               <p className="text-xs text-text-muted">Dia {currentDay} do plano{year > 1 ? ` (Ano ${year})` : ''}</p>
