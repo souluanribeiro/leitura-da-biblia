@@ -6,3 +6,6 @@ supabase/.temp
 *.tsbuildinfo
 scripts/.venv
 scripts/pdfs
+
+.vercel
+.env*
