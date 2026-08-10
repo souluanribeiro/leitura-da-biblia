@@ -1,4 +1,4 @@
-const CACHE_NAME = 'leitura-v2'
+const CACHE_NAME = 'leitura-v3'
 const SHELL_ASSETS = [
   '/',
   '/index.html',
