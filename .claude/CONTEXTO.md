@@ -8,9 +8,11 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 **URL App:** https://leitura-da-biblia.vercel.app
 **URL Admin:** https://admin-app-two-orcin.vercel.app
 
-**Deploy:** Manual via `npx vercel --prod --yes`
+**Deploy:** Auto-deploy via Git (desde 10/08). Push na `main` publica automaticamente nos dois projetos. Manual é opcional via `npx vercel --prod --yes`.
 
-**GitHub:** https://github.com/souluanribeiro/leitura-da-biblia
+**GitHub:**
+- App: https://github.com/souluanribeiro/leitura-da-biblia (branch `main`)
+- Admin: https://github.com/souluanribeiro/admin-app (branch `main`)
 
 **Pasta do projeto:** `Biblia-Em-1-Ano/`
 - `Biblia-Em-1-Ano/Leitura-da-Biblia/` — app principal
@@ -29,7 +31,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - **Secundário (roxo):** `#5a3b87` / `purple-dim: rgba(90, 59, 135, 0.15)`
 - **Emojis:** proibido (exceto marcadores 🔸🔹). Tudo com ícones `lucide-react`.
 - **Tom da marca:** 50% acolhedor + 50% clareza. Sem hype, sem infantilizar.
-- **Favicon:** SVG customizado (livro azul com páginas brancas em fundo arredondado)
+- **Ícone do app (10/08):** imagem enviada pelo usuário (a partir de `leitura da bíblia.png`, 200×200 com cantos transparentes). Gerados: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (fundo `#0f0f1a`, zona segura 80%), `favicon.png` (32px). `favicon.svg` removido. Service worker em `leitura-v2`.
 - **Service Worker:** Implementado (cache-first para wol.jw.org, network-first para Supabase)
 
 ---
@@ -185,7 +187,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - **Cron** `send-daily-reminder-hourly` (`0 * * * *`) via pg_cron + pg_net, usando `CRON_SECRET` do Vault (migrations 029/030) — não usa mais a service role key
 - **Inscrição grava `user_email`** (migration 032) para o admin mostrar e-mail em vez de uuid
 - **Admin pode excluir** inscrições antigas/inativas (policy 032)
-- GitHub Actions workflow para envio diário
+- **Agendamento (10/08):** nova edge function `send-scheduled-notifications` processa `admin_notifications` com `status='pending'` e `scheduled_at <= now()`. Cron `*/5 * * * *` (migration 033) com `CRON_SECRET` do Vault. ⚠️ **fix importante:** função deployada com `verify_jwt=false` no config.toml (default era `true`, cron recebia 401 e nunca executava — corrigido e testado 200 OK)
 
 ### Compartilhar
 - `src/lib/share.ts`: Web Share API com fallback para clipboard
@@ -210,7 +212,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 
 - **Projeto:** `lbgztfqgzjmiwvcghnki`
 - **Tabelas:** `reading_progress`, `notes`, `push_subscriptions` (com `user_email`), `profiles` (com `reading_start_date`, `is_admin`, foto/nome/idade/batismo), `chat_history` (com `conversation_id`), `conversations`, `knowledge_base`, `agent_config`, `error_logs`, `push_received_log`, `admin_notifications`
-- **Edge Functions:** `bible-agent` (`verify_jwt=true`), `send-daily-reminder` (`verify_jwt=false`, cron com CRON_SECRET), `admin-operations` (`verify_jwt=false` com auth+admin check manual), `send-admin-notification` (`verify_jwt=false` com auth+admin check manual)
+- **Edge Functions (6):** `bible-agent` (`verify_jwt=true`), `send-daily-reminder` (`verify_jwt=false`, cron com CRON_SECRET), `admin-operations` (`verify_jwt=false` com auth+admin check manual), `send-admin-notification` (`verify_jwt=false` com auth+admin check manual), `log-push-received` (`verify_jwt=false`), `send-scheduled-notifications` (`verify_jwt=false` — fix 10/08, antes 401 no cron)
 - **Auth trigger:** cria perfil automaticamente no signup
 - **Rotação de chaves Supabase em 09/08:** chaves da API (incluindo anon) foram rotacionadas — anon key atual no `.env` e no Vercel; precisa de redeploy se rotacionar de novo
 - **Extensões:** `pg_cron`, `pg_net`, `supabase_vault`
@@ -229,6 +231,8 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - `030_install_pg_net.sql` — instala a extensão pg_net
 - `031_admin_read_chats_and_lock_chat_role.sql` — admin lê chat_history/conversations; INSERT de chat_history restrito a role='user' (bloqueia forjar resposta do agente)
 - `032_push_subscriptions_email_admin.sql` — coluna user_email + backfill + policy de DELETE para admin
+- `033_send_scheduled_notifications_cron.sql` — cron `*/5 * * * *` chamando `send-scheduled-notifications` com `CRON_SECRET` do Vault
+- `034_atomic_rate_limit_rpc.sql` — RPC `log_user_message` (SECURITY DEFINER, `search_path=''`, `pg_advisory_xact_lock`, só `service_role`): contagem + INSERT atômicos; `checkRateLimit` removido do bible-agent
 
 ---
 
@@ -254,7 +258,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 7. **+N expansível:** botão azul bold; recolher roxo bold
 8. **Excluir notas:** com confirmação
 9. **Hoje sempre data atual**
-10. **Favicon:** SVG customizado
+10. **Ícone/Favicon (10/08):** imagem enviada pelo usuário — PWA icons (192/512/maskable) + `favicon.png`; `favicon.svg` removido
 11. **Foto de perfil:** comprimida 200x200 JPEG, localStorage
 12. **Onboarding:** multi-step com persistência
 13. **Bíblia copyright:** links externos para wol.jw.org
@@ -264,6 +268,9 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 17. **Busca na base:** FTS v2 com OR de termos (tolerante a linguagem natural); trigger mantém `search_vector` atualizado ao editar artigos no admin
 18. **Auditoria v2 (09/08):** 11 itens de segurança corrigidos e deployados — prompt injection no agente, role `assistant` que podia ser forjada via RLS (migration 031), admin não lia conversas, máquina de estados das notificações, CSP sem `unsafe-inline`, etc.
 19. **Login admin-app:** sempre conferir o **id do usuário no projeto correto** (`lbgztfqgzjmiwvcghnki` = `417e9bba-...`); o antigo `7446cd05-...` pertence ao projeto `iqtqtxlqzveixxxunnvj`
+20. **Auto-deploy Git (10/08):** Vercel conectado aos dois repos GitHub (`leitura-da-biblia` e `admin-app`). Push em `main` publica automaticamente. `.gitignore` ignora `.vercel` e `.env*`.
+21. **Cron de agendamento (10/08):** `send-scheduled-notifications` com `verify_jwt=false` (obrigatório — default `true` causa 401 porque o cron não envia JWT real)
+22. **Rate limit atômico (10/08):** RPC `log_user_message` substitui o `checkRateLimit` no código; `saveChatMessage` mantido só para resposta do assistant
 
 ---
 
@@ -290,7 +297,12 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - `supabase/functions/bible-agent/index.ts` — Edge Function com Groq + knowledge_base (prompt 100% admin)
 - `supabase/functions/send-daily-reminder/index.ts` — Edge Function lembretes (cron)
 - `supabase/functions/admin-operations/index.ts` — Edge Function operações de admin (auth+is_admin manual)
-- `supabase/functions/send-admin-notification/index.ts` — Edge Function push notifications para admin
+- `supabase/functions/send-admin-notification/index.ts` — Edge Function push notifications para admin (usa `_shared/push.ts`)
+- `supabase/functions/send-scheduled-notifications/index.ts` — Edge Function de notificações agendadas (cron `*/5 * * * *`)
+- `supabase/functions/_shared/push.ts` — lógica compartilhada `sendNotificationById` (extraído em 10/08)
+- `supabase/functions/log-push-received/index.ts` — log de push recebido (sem `LEGACY_ANON_KEY`)
+- `public/icons/` — `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`
+- `public/favicon.png` — favicon do navegador
 - `supabase/migrations/004_knowledge_base.sql`
 - `supabase/migrations/005_agent_config.sql`
 - `supabase/migrations/006_conversations.sql`
@@ -312,7 +324,33 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 
 ---
 
-*Última atualização: 09/08/2026*
+*Última atualização: 10/08/2026*
+
+## Estado recente (10/08/2026)
+
+### Leitura da Bíblia — últimos commits (`main`)
+- `9380a90` — Imagem do ícone na tela de login
+- `b1b6305` — Novo ícone do app (PWA, favicon e máscara) a partir da imagem enviada
+- `ba4f645` — Fix: `verify_jwt=false` em `send-scheduled-notifications` (cron usava 401)
+- `6be6a6c` — Ignora `.vercel` e `.env*` (vínculo Git com Vercel)
+- `f000bb3` — Auditoria v3: agendamento de notificações, rate limit atômico, remove chave legada, fecha vazamento de contexto entre conversas
+- `f33d3f7` — Push: grava `user_email` na inscrição + migration 032
+- `dc2f373` — Sheep: max_tokens 600, histórico 8 msgs, KB 4 fontes, backoff 429
+- `6d6a983` — Auditoria v2: prompt injection, estados de notificação, LGPD, RLS, paginação, CSP
+
+### admin-app — últimos commits (`main`)
+- `2a7008f` — Push: mostra e-mail do usuário, abas Ativas/Inativas, botão limpar inscrições antigas
+- `e4c2e0d` — Auditoria v2: JSON.parse seguro, res.ok, paginação por cursor, CSP, MIME avatar, signOut seguro
+- `9f1c467` — Admin: campos de limite diário e por minuto do Sheep
+- `cca2fa4` — Logs mostram e-mail do usuário
+
+### Resumo 10/08 — auditoria v3 + deploy + integração
+1. **Auditoria v3 (commit `f000bb3`):** RLS e edge functions revisados (considerados sólidos); extraiu envio de push para `_shared/push.ts`; nova função `send-scheduled-notifications`; RPC atômica `log_user_message` (migration 034) com `pg_advisory_xact_lock`; removida `LEGACY_ANON_KEY`; `fetchChatHistory` retorna `[]` sem `conversationId`.
+2. **Supabase:** 3 edge functions redeployadas; migrations 033 (cron) e 034 (RPC) aplicadas e verificadas. Cron `*/5 * * * *` ativo.
+3. **Bug crítico corrigido:** `send-scheduled-notifications` deployada com `verify_jwt=true` (default) → cron recebia **401** e nada era processado. Fix no `config.toml` (`verify_jwt=false`), redeploy e teste manual com `CRON_SECRET` → **200 OK** (`{"processed":0,"results":[]}`).
+4. **Vercel:** integração Git conectada nos DOIS projetos. Teste real de auto-deploy OK (commits `6be6a6c` e `ba4f645` publicados automaticamente).
+5. **Ícone do app:** imagem enviada pelo usuário aplicada em PWA (192/512/maskable), favicon e tela de login. Service worker bump para `leitura-v2`.
+6. **Pendência de teste:** `push_subscriptions` está vazia (0 inscritos) — envio real de notificação não pode ser validado até haver dispositivo inscrito.
 
 ## Estado recente (09/08/2026)
 
