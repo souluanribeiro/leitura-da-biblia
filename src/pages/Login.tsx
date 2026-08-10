@@ -55,13 +55,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-bg-dark p-4 fade-in">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-accent/10 mb-4">
-            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-accent">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-              <path d="M6 8h2" /><path d="M6 12h2" /><path d="M16 8h2" /><path d="M16 12h2" />
-            </svg>
-          </div>
+          <img src="/icons/icon-192.png" alt="Leitura da Bíblia" className="w-16 h-16 mx-auto mb-4 rounded-2xl" />
           <h1 className="text-2xl font-bold text-text-primary">Leitura da Bíblia</h1>
           <p className="text-text-muted text-sm mt-1">Plano de leitura em 1 ano • TNM</p>
         </div>
