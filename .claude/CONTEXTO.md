@@ -31,7 +31,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - **Secundário (roxo):** `#5a3b87` / `purple-dim: rgba(90, 59, 135, 0.15)`
 - **Emojis:** proibido (exceto marcadores 🔸🔹). Tudo com ícones `lucide-react`.
 - **Tom da marca:** 50% acolhedor + 50% clareza. Sem hype, sem infantilizar.
-- **Ícone do app (10/08):** imagem enviada pelo usuário (a partir de `leitura da bíblia.png`, 200×200 com cantos transparentes). Gerados: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` (fundo `#0f0f1a`, zona segura 80%), `favicon.png` (32px). `favicon.svg` removido. Service worker em `leitura-v2`.
+- **Ícone do app (10/08):** imagem do usuário `leitura da bíblia.png` (200×200, fundo roxo sólido — TL 154,126,191 / BR 74,34,101). Gerados: `icon-192.png`, `icon-512.png`, `icon-maskable-512.png` e `favicon.png`, todos preenchidos com o roxo da imagem (**sem borda preta**, sem cantos transparentes). `favicon.svg` removido. Service worker em `leitura-v4`.
 - **Service Worker:** Implementado (cache-first para wol.jw.org, network-first para Supabase)
 
 ---
@@ -329,6 +329,12 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 ## Estado recente (10/08/2026)
 
 ### Leitura da Bíblia — últimos commits (`main`)
+- `6e5e375` — **Auditoria de lançamento:** CSP libera vídeos JW (`media-src`/`img-src`/`connect-src` para `*.jw-cdn.org`), `getChaptersList` corrigido (dias "Salmo 119 (X–Y)" geravam lista vazia), remove `.github/workflows/daily-reminder.yml` (redundante e quebrado — enviava service_role em função que agora exige CRON_SECRET; o cron do Supabase 027 cobre o envio)
+- `ee27e1a` — Fix: alinha "Leitura atual" com os títulos das leituras (`pl-3`)
+- `a1925da` — Fix: ícone sem borda preta (fundo roxo) e alinha "Leitura atual" (`pl-7`)
+- `eedd01b` — Botão da página de leitura vira "Concluir" (era "Marcar como lido")
+- `5ca67fa` — Novo ícone (bíblia roxa) no PWA, favicon e login; remove ícone do card "Leitura atual"; SW `leitura-v3`
+- `8cb5ce2` — Docs: atualiza CONTEXTO e regras (auto-deploy, fix cron 401, ícone, migrations 033/034)
 - `9380a90` — Imagem do ícone na tela de login
 - `b1b6305` — Novo ícone do app (PWA, favicon e máscara) a partir da imagem enviada
 - `ba4f645` — Fix: `verify_jwt=false` em `send-scheduled-notifications` (cron usava 401)
@@ -351,6 +357,22 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 4. **Vercel:** integração Git conectada nos DOIS projetos. Teste real de auto-deploy OK (commits `6be6a6c` e `ba4f645` publicados automaticamente).
 5. **Ícone do app:** imagem enviada pelo usuário aplicada em PWA (192/512/maskable), favicon e tela de login. Service worker bump para `leitura-v2`.
 6. **Pendência de teste:** `push_subscriptions` está vazia (0 inscritos) — envio real de notificação não pode ser validado até haver dispositivo inscrito.
+
+### Auditoria de lançamento (10/08, commit `6e5e375`) — "posso divulgar?"
+**Resultado: SIM, pronto para divulgar.** Tudo verificado e corrigido nesta sessão:
+- **CSP consertado (`vercel.json`):** vídeos de introdução JW vinham de `cfp2.jw-cdn.org` (MP4) e a API de `b.jw-cdn.org`, mas o CSP só permitia `'self'` → o vídeo embutido nunca carregava em produção (degradava para o link externo). Adicionado `media-src https://*.jw-cdn.org blob:`, `img-src https://*.jw-cdn.org` (poster .jpg) e `connect-src https://*.jw-cdn.org`.
+- **Bug Salmo 119 (`getChaptersList`, `src/lib/reading-plan.ts`):** dias `Salmo 119 (1–8)` etc. (dias 306–327) tinham `chapters: '119:1-8'` → parse gerava lista vazia (sem caixas de capítulo, barra de progresso quebrada). Corrigido: quando só o início tem `:cap`, o fim herda o mesmo capítulo.
+- **Workflow do GitHub removido:** `daily-reminder.yml` enviava `service_role` via header mas `send-daily-reminder` exige `CRON_SECRET` (desde 027) → falhava 403 a cada hora. Removido; o cron do Supabase (027) é a fonte única do lembrete diário.
+- **Segurança testada ao vivo (anon key):** RLS OK — anon vê `[]` em `profiles`, `reading_progress`, `chat_history`, `conversations`, `notes`, `push_subscriptions`, `admin_notifications`, `push_received_log`; `agent_config` expõe só nome/avatar/descrição (nunca `system_prompt`); `knowledge_base` e RPC FTS não vazam conteúdo ao anon.
+- **Edge functions testadas:** sem token → 401/403 corretos em `bible-agent`, `admin-operations`, `send-admin-notification`, `send-daily-reminder`, `send-scheduled-notifications`, `log-push-received`; origem falsa → 403.
+- **Build:** `npm run build` OK (tsc + vite).
+- **Migrations:** todas aplicadas (001–034) no `lbgztfqgzjmiwvcghnki`.
+- **SW:** `leitura-v4` (bump por causa do ícone novo).
+
+### Ajustes visuais da sessão (10/08, commits `a1925da`, `ee27e1a`)
+- Ícone do app regenerado direto da imagem do usuário (`leitura da bíblia.png`, 200×200 fundo roxo sólido) — **sem borda preta** (o problema era o fundo `#0f0f1a` do maskable + transparência do SVG anterior).
+- Dashboard: removido o `<img>` do card "Leitura atual"; título com `pl-3` (12px) para alinhar exatamente com os títulos das leituras (padding 16px + gap-3 12px = 28px dos dois lados).
+- Login continua usando `/icons/icon-192.png`.
 
 ## Estado recente (09/08/2026)
 
