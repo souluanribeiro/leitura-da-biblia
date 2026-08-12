@@ -18,6 +18,29 @@ function isValidUUID(str: string): boolean {
   return UUID_REGEX.test(str)
 }
 
+async function audit(
+  supabase: any,
+  actorId: string,
+  actorEmail: string,
+  action: string,
+  targetType: string,
+  targetId: string,
+  detail: string
+) {
+  try {
+    await supabase.from("admin_audit_log").insert({
+      action,
+      target_type: targetType,
+      target_id: targetId,
+      detail,
+      actor_id: actorId,
+      actor_email: actorEmail,
+    })
+  } catch (e) {
+    console.error("audit insert error:", e)
+  }
+}
+
 serve(async (req) => {
   const origin = req.headers.get("origin")
   const corsHeaders = getCorsHeaders(origin)
@@ -97,6 +120,8 @@ serve(async (req) => {
         })
       }
 
+      await audit(supabase, user.id, user.email || "", "delete_conversation", "conversations", conversationId, "Exclusão pela edge function")
+
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
@@ -121,6 +146,8 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })
       }
+
+      await audit(supabase, user.id, user.email || "", "delete_message", "chat_history", messageId, "Exclusão pela edge function")
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -154,6 +181,12 @@ serve(async (req) => {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         })
       }
+
+      await audit(
+        supabase, user.id, user.email || "deleted",
+        "delete_user", "user", userId,
+        "LGPD: exclusão completa de dados do usuário"
+      )
 
       return new Response(JSON.stringify({ success: true }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

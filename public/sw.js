@@ -101,16 +101,35 @@ self.addEventListener('push', (event) => {
     renotify: true,
   }
 
+  // Lê o access token do usuário logado no app (service worker tem acesso ao
+  // mesmo localStorage da origem) para autenticar o log de push recebido.
+  // Sem sessão ativa, o log é silenciosamente ignorado.
+  function readAccessToken() {
+    try {
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i)
+        if (!key || !key.startsWith('sb-') || !key.endsWith('-auth-token')) continue
+        const raw = JSON.parse(localStorage.getItem(key) || 'null')
+        if (!raw) continue
+        const token = raw.access_token || (raw.currentSession && raw.currentSession.access_token) || null
+        if (token) return token
+      }
+    } catch (e) {}
+    return null
+  }
+
   self.registration.pushManager.getSubscription().then((sub) => {
     if (sub) {
+      const supabaseUrl = '__SUPABASE_URL__'
+      if (supabaseUrl.indexOf('SUPABASE_URL') !== -1) return
+      const token = readAccessToken()
+      if (!token) return
       const tail = sub.endpoint.slice(-30)
-      const anonKey = '__SUPABASE_ANON_KEY__'
-      if (!anonKey || anonKey.indexOf('SUPABASE_ANON_KEY') !== -1) return
-      fetch('https://lbgztfqgzjmiwvcghnki.supabase.co/functions/v1/log-push-received', {
+      fetch(`${supabaseUrl}/functions/v1/log-push-received`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'apikey': anonKey,
+          'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify({ endpoint_tail: tail }),
       }).catch(() => {})

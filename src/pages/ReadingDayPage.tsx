@@ -21,7 +21,7 @@ export default function ReadingDayPage() {
   const [noteStatus, setNoteStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [noteId, setNoteId] = useState<string | null>(null)
   const [checkedChapters, setCheckedChapters] = useState<Record<string, boolean>>({})
-  const [videoUrls, setVideoUrls] = useState<Record<number, string | null>>({})
+  const [videoUrls, setVideoUrls] = useState<Record<number, { url: string; poster: string } | null>>({})
   const [loading, setLoading] = useState(true)
   const [showConfetti, setShowConfetti] = useState(false)
 
@@ -116,10 +116,10 @@ export default function ReadingDayPage() {
     }
 
     const uniqueBooks = [...new Set(readings.map(r => r.bookNum))]
-    const urls: Record<number, string | null> = {}
+    const urls: Record<number, { url: string; poster: string } | null> = {}
     await Promise.all(uniqueBooks.map(async (bookNum) => {
       const result = await getBookIntroVideo(bookNum)
-      urls[bookNum] = result?.url || null
+      urls[bookNum] = result ? { url: result.url, poster: result.poster } : null
     }))
     setVideoUrls(urls)
     setLoading(false)
@@ -253,7 +253,7 @@ export default function ReadingDayPage() {
 
       {readings.map((r, i) => {
         const chaptersList = getChaptersList(r.chapters)
-        const videoUrl = videoUrls[r.bookNum]
+        const video = videoUrls[r.bookNum]
 
         return (
           <div key={i} className="bg-bg-card rounded-2xl border border-white/5 overflow-hidden card">
@@ -275,20 +275,20 @@ export default function ReadingDayPage() {
               </button>
             </div>
 
-            {videoUrl && (
+            {video?.url && (
               <div className="border-b border-white/5">
                 <video
-                  src={videoUrl}
+                  src={video.url}
                   controls
                   preload="metadata"
                   className="w-full aspect-video bg-black/40"
-                  poster={videoUrl.replace(/\.mp4$/, '.jpg')}
+                  poster={video.poster || undefined}
                 >
                   <p>Seu navegador não suporta vídeo.</p>
                 </video>
               </div>
             )}
-            {!videoUrl && videoUrls[r.bookNum] !== undefined && (() => {
+            {!video?.url && videoUrls[r.bookNum] !== undefined && (() => {
               const fallbackUrl = getBookVideoUrl(r.bookNum)
               if (!fallbackUrl) return null
               return (

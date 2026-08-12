@@ -3,19 +3,6 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
 const ALLOWED_ORIGINS = ["https://leitura-da-biblia.vercel.app", "http://localhost:5173"]
 
-function isAuthorized(authHeader: string, apikeyHeader: string): boolean {
-  const allowed = new Set<string>()
-  for (const raw of [
-    Deno.env.get("SUPABASE_ANON_KEY"),
-    Deno.env.get("SUPABASE_PUBLISHABLE_KEYS"),
-  ]) {
-    if (!raw) continue
-    for (const key of raw.split(",")) allowed.add(key.trim())
-  }
-  const value = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : apikeyHeader
-  return allowed.has(value)
-}
-
 function getCorsHeaders(origin: string | null) {
   const allowed = ALLOWED_ORIGINS.includes(origin || "") ? origin : null
   return {
@@ -38,22 +25,27 @@ serve(async (req) => {
   }
 
   const authHeader = req.headers.get("authorization") || ""
-  const apikeyHeader = req.headers.get("apikey") || ""
+  const token = authHeader.replace("Bearer ", "")
 
-  if (!isAuthorized(authHeader, apikeyHeader)) {
-    return new Response(JSON.stringify({ ok: false, error: "Não autorizado" }), { status: 403, headers: corsHeaders })
+  if (!token) {
+    return new Response(JSON.stringify({ ok: false, error: "Não autorizado" }), { status: 401, headers: corsHeaders })
+  }
+
+  const supabase = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+  )
+
+  const { data: { user }, error: authError } = await supabase.auth.getUser(token)
+  if (authError || !user) {
+    return new Response(JSON.stringify({ ok: false, error: "Não autorizado" }), { status: 401, headers: corsHeaders })
   }
 
   try {
     const { endpoint_tail } = await req.json()
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    )
-
     const { error } = await supabase
       .from("push_received_log")
-      .insert({ endpoint_tail: String(endpoint_tail || "").slice(-30) })
+      .insert({ endpoint_tail: String(endpoint_tail || "").slice(-30), user_id: user.id })
 
     if (error) {
       console.log(`[log-push-received] insert error: ${error.message}`)
