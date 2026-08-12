@@ -152,7 +152,9 @@ App de leitura bíblica em 364 dias, com identidade visual dark moderna, vídeos
 
 ### Admin App (`admin-app/`)
 - **URL:** https://admin-app-two-orcin.vercel.app (projeto Vercel: `admin-app`)
-- **Páginas:** Login, Dashboard, Knowledge Base, Prompt Editor, Logs, Erros, Push, Leituras, Disparar, Configurações
+- **Páginas:** Login, Dashboard, Knowledge Base, Prompt Editor, Logs, Erros, Push, Leituras, Disparar, Auditoria (12/08), Configurações
+- **MFA (12/08):** TOTP via Supabase Auth, gerenciado em Configurações. "Obrigatório" na tela (`Layout.tsx` bloqueia navegação sem fator verificado) — **mas enforcement é só client-side, ver PENDÊNCIA CRÍTICA no topo do arquivo.**
+- **Auditoria (12/08):** tela `/audit` lê `admin_audit_log` (somente leitura — sem botão de limpar, por design)
 - **Settings:** Foto do agente (base64), nome, descrição, sugestões
 - **Knowledge Base:** CRUD de artigos com título, conteúdo, keywords — **única fonte de conhecimento do Sheep**
 - **Prompt Editor:** Edição do system prompt do agente (com dica de placeholders)
@@ -212,7 +214,7 @@ App de leitura bíblica em 364 dias, com identidade visual dark moderna, vídeos
 
 - **Projeto:** `lbgztfqgzjmiwvcghnki`
 - **Tabelas:** `reading_progress`, `notes`, `push_subscriptions` (com `user_email`), `profiles` (com `reading_start_date`, `is_admin`, foto/nome/idade/batismo), `chat_history` (com `conversation_id`), `conversations`, `knowledge_base`, `agent_config`, `error_logs`, `push_received_log`, `admin_notifications`
-- **Edge Functions (6):** `bible-agent` (`verify_jwt=true`), `send-daily-reminder` (`verify_jwt=false`, cron com CRON_SECRET), `admin-operations` (`verify_jwt=false` com auth+admin check manual), `send-admin-notification` (`verify_jwt=false` com auth+admin check manual), `log-push-received` (`verify_jwt=false`), `send-scheduled-notifications` (`verify_jwt=false` — fix 10/08, antes 401 no cron)
+- **Edge Functions (6):** `bible-agent` (`verify_jwt=true`), `send-daily-reminder` (`verify_jwt=false`, cron com CRON_SECRET), `admin-operations` (`verify_jwt=false` com auth+admin check manual, grava `admin_audit_log` nas ações destrutivas desde 12/08), `send-admin-notification` (`verify_jwt=false` com auth+admin check manual), `log-push-received` (`verify_jwt=false`, exige JWT do usuário via `auth.getUser` desde 12/08 — antes aceitava anon key), `send-scheduled-notifications` (`verify_jwt=false` — fix 10/08, antes 401 no cron)
 - **Auth trigger:** cria perfil automaticamente no signup
 - **Rotação de chaves Supabase em 09/08:** chaves da API (incluindo anon) foram rotacionadas — anon key atual no `.env` e no Vercel; precisa de redeploy se rotacionar de novo
 - **Extensões:** `pg_cron`, `pg_net`, `supabase_vault`
@@ -233,6 +235,9 @@ App de leitura bíblica em 364 dias, com identidade visual dark moderna, vídeos
 - `032_push_subscriptions_email_admin.sql` — coluna user_email + backfill + policy de DELETE para admin
 - `033_send_scheduled_notifications_cron.sql` — cron `*/5 * * * *` chamando `send-scheduled-notifications` com `CRON_SECRET` do Vault
 - `034_atomic_rate_limit_rpc.sql` — RPC `log_user_message` (SECURITY DEFINER, `search_path=''`, `pg_advisory_xact_lock`, só `service_role`): contagem + INSERT atômicos; `checkRateLimit` removido do bible-agent
+- `001_initial_schema.sql` — (12/08) schema base reconstruído/idempotente, aplicado por último (regularizando o histórico)
+- `035_log_push_received_auth.sql` — (12/08) coluna `user_id` em `push_received_log`
+- `036_admin_audit_log.sql` — (12/08) tabela `admin_audit_log` + triggers SECURITY DEFINER em `agent_config`/`knowledge_base`/`admin_notifications` + RPC `audit_admin_action`
 
 ---
 
@@ -324,7 +329,64 @@ App de leitura bíblica em 364 dias, com identidade visual dark moderna, vídeos
 
 ---
 
-*Última atualização: 10/08/2026*
+*Última atualização: 12/08/2026*
+
+## Estado recente (12/08/2026) — AUDITORIA PRÉ-LANÇAMENTO, EM ANDAMENTO
+
+**Veredito atual: NÃO divulgar ainda.** Ver `.claude/AUDITORIA_PRE_LANCAMENTO.md` para o
+checklist completo e atualizado — este resumo aqui é só o essencial pra retomar rápido.
+
+### O que foi feito e publicado nesta sessão
+- **Leitura-da-Biblia** (commit `fd46782`, em produção):
+  - `log-push-received` reescrito: exige JWT do usuário (`auth.getUser`) em vez de aceitar
+    a anon key genérica; o service worker (`public/sw.js`) agora lê o access token da sessão
+    ativa no `localStorage` e manda `Authorization: Bearer` (antes mandava a anon key).
+  - Migrations `001` (schema base reconstruído/idempotente), `035` (coluna `user_id` em
+    `push_received_log`) e `036` (tabela `admin_audit_log` + triggers de auditoria) —
+    todas aplicadas em produção.
+  - `jw-media.ts` corrigido pro formato atual da API JW.org (`data.files.T.MP4`) — validado
+    contra a API real, 66/66 livros com vídeo mapeado.
+  - `npm audit fix` — 0 vulnerabilidades.
+- **admin-app** (commit `58ddd6a`, em produção):
+  - Bug corrigido: `getSessionAal()` sem `await` no login (comparava Promise com string,
+    sempre falso — MFA verificado era ignorado a cada reload).
+  - Botão "Limpar tudo" da tela de Auditoria removido (RLS só permite SELECT, é auditoria
+    imutável por design).
+  - Nova tela `/audit` lendo `admin_audit_log`.
+  - MFA "obrigatório": `Layout.tsx` bloqueia navegação e força `/settings` se não houver
+    fator TOTP verificado. **Ver problema crítico abaixo — essa trava não é suficiente.**
+  - `npm audit fix` — sobrou 1 vulnerabilidade moderada em `react-router` (só corrige com
+    upgrade major v6→v7, deixado como risco residual baixo documentado).
+
+### ⚠️ PENDÊNCIA CRÍTICA — MFA só bloqueia a tela, não o servidor
+Uma revisão de segurança automática nos commits publicados encontrou que o "MFA
+obrigatório" do admin-app é **enforcement só client-side** — nenhuma RLS policy nem edge
+function do projeto `lbgztfqgzjmiwvcghnki` checa `auth.jwt()->>'aal'`. Na prática:
+- Qualquer chamada direta à API (console do navegador, curl com o token) ignora a trava
+  da tela completamente.
+- Bug de "fail-open" em `Layout.tsx`: se a checagem de MFA der erro de rede, o sistema
+  **libera** o acesso por padrão em vez de bloquear.
+- `handleDisableMfa`/`enrollTotp` (`Settings.tsx`, `mfa.ts`) não exigem sessão aal2 antes
+  de desativar o MFA do admin de verdade ou cadastrar um fator novo — quem só tem a senha
+  pode desligar a proteção ou se auto-promover a "segundo fator" via chamada direta ao
+  GoTrue (endpoint de MFA do Supabase não passa pelas RLS policies do Postgres).
+
+**Isso NÃO foi corrigido ainda.** Detalhes e plano de correção completo em
+`.claude/AUDITORIA_PRE_LANCAMENTO.md`, seção "BLOQUEADOR NOVO". Resumo do plano:
+1. Checar `aal2` nas RLS policies das tabelas sensíveis e nos edge functions
+   `admin-operations`/`send-admin-notification` (não só `is_admin`).
+2. Corrigir o fail-open (tratar erro como bloqueado, não como liberado).
+3. Trigger de auditoria em enroll/unenroll de MFA (defesa detectiva — a preventiva total
+   não é possível pela limitação do GoTrue de permitir gerenciar fatores com sessão aal1).
+4. Confirmar que o admin (`luanribeiroterapeuta@gmail.com`) já tem MFA ativo de verdade,
+   e considerar trocar a senha do admin-app por uma forte e única.
+
+### Pendências de teste ao vivo (precisam do usuário)
+- Login com MFA real (precisa do celular com o autenticador).
+- Notificação push real (0 inscritos hoje — recrutar 1 testador).
+- Instalar o PWA e conferir visualmente.
+
+---
 
 ## Estado recente (10/08/2026)
 
