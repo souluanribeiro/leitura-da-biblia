@@ -1,7 +1,7 @@
 # Contexto — App Leitura da Bíblia
 
 ## Sobre
-App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos de introdução inline, checklist de capítulos, anotações pessoais e agente IA "Sheep". Inclui app administrativo para gerenciar o agente. Baseado no plano "Ler a Bíblia em 366 Dias" das Testemunhas de Jeová.
+App de leitura bíblica em 364 dias, com identidade visual dark moderna, vídeos de introdução inline, checklist de capítulos, anotações pessoais e agente IA "Sheep". Inclui app administrativo para gerenciar o agente. Baseado no plano "Ler a Bíblia em 364 Dias" das Testemunhas de Jeová.
 
 **Stack:** React + TypeScript + Vite + Supabase (auth + DB) + Vercel (deploy)
 
@@ -59,7 +59,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 5. Cânticos e Sabedoria Prática (`#ef4444`, icon music)
 6. Os Profetas (`#22c55e`, icon message-square)
 7. Relatos da Vida de Jesus (`#3b82f6`, icon dove)
-8. Crescimento da Congregação (`#6366f1`, icon users)
+8. Crescimento da Congregação (`#6364f1`, icon users)
 9. As Cartas de Paulo (`#a855f7`, icon mail)
 10. Escritos de Outros Apóstolos (`#f97316`, icon pen-tool)
 
@@ -73,7 +73,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 
 ### Dashboard
 - Streak de dias seguidos com ícone `Flame` e pulse a cada 7 dias
-- Anel de progresso SVG (arc) com % (sem texto "X/366" abaixo)
+- Anel de progresso SVG (arc) com % (sem texto "X/364" abaixo)
 - Contador de dias lidos com ícone `CheckCircle`
 - Botão "Estatísticas" no canto superior direito
 - Card central com a leitura do dia (título, seção, marcador)
@@ -288,7 +288,7 @@ App de leitura bíblica em 366 dias, com identidade visual dark moderna, vídeos
 - `src/pages/Login.tsx` — Google OAuth + email/senha
 - `src/components/Layout.tsx` — Header + Bottom nav
 - `src/lib/bible-agent.ts` — Funções CRUD conversas, mensagens, config do agente
-- `src/lib/reading-plan.ts` — Plano 366 dias, 12 seções, marcadores
+- `src/lib/reading-plan.ts` — Plano 364 dias, 12 seções, marcadores
 - `src/lib/jw-media.ts` — API de vídeos JW.ORG
 - `src/lib/push.ts` — Notificações push
 - `src/lib/share.ts` — Web Share API

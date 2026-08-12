@@ -7,7 +7,7 @@ import {
   calcStreak, getReadingYear,
   searchReadingPlan, schedules, getScheduleDays, getScheduleName,
   getCurrentSchedule, setCurrentSchedule, getNextUncompletedInSchedule,
-  buildAllCheckedChapters, saveCheckedChapters,
+  buildAllCheckedChapters, saveCheckedChapters, PLAN_DAYS,
 } from '../lib/reading-plan'
 import { BookOpen, Flame, ChevronLeft, ChevronRight, CheckCircle, Play, ChevronDown, ChevronUp, Search, X, ArrowDown, Clock, List, Check, TrendingUp, Loader2, Share2, StickyNote } from 'lucide-react'
 import { loadAgentConfig } from '../lib/bible-agent'
@@ -192,7 +192,7 @@ export default function Dashboard() {
     setPullDistance(0)
 
     if (Math.abs(swipeOffset) > 80) {
-      const maxDay = scheduleDays[scheduleDays.length - 1] || 366
+      const maxDay = scheduleDays[scheduleDays.length - 1] || PLAN_DAYS
       if (swipeOffset < 0 && currentDay < maxDay) setCurrentDay(currentDay + 1)
       if (swipeOffset > 0 && currentDay > 1) setCurrentDay(currentDay - 1)
     }
@@ -214,7 +214,7 @@ export default function Dashboard() {
 
   let longestStreak = 0
   let tempStreak = 0
-  for (let i = 1; i <= 366; i++) {
+  for (let i = 1; i <= PLAN_DAYS; i++) {
     if (completedDays.has(i)) { tempStreak++; longestStreak = Math.max(longestStreak, tempStreak) }
     else tempStreak = 0
   }
@@ -238,7 +238,7 @@ export default function Dashboard() {
   const nextDays: { day: number; title: string; book: string }[] = []
   if (currentDay > 0) {
     let found = 0
-    for (let dd = currentDay + 1; dd <= currentDay + 366 && found < 3; dd++) {
+    for (let dd = currentDay + 1; dd <= currentDay + PLAN_DAYS && found < 3; dd++) {
       if (!completedDays.has(dd)) {
         const r = getReadingForDay(dd)
         if (r.length > 0) { nextDays.push({ day: dd, title: r[0].title, book: r[0].book }); found++ }
@@ -304,7 +304,7 @@ export default function Dashboard() {
       <div className="p-4 text-center py-16 space-y-4 max-w-lg mx-auto">
         <CheckCircle size={56} className="text-accent mx-auto" />
         <h1 className="text-2xl font-bold text-accent">Bíblia completa!</h1>
-        <p className="text-text-muted">Você leu a Bíblia inteira em 366 dias. Incrível!</p>
+        <p className="text-text-muted">Você leu a Bíblia inteira em {PLAN_DAYS} dias. Incrível!</p>
         <button
           onClick={() => navigate('/calendario')}
           className="text-sm text-accent hover:text-accent-light transition-colors"

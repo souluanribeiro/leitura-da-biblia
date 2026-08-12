@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
-import { sections, getDaysInSection, getTodayReadingDay, calcStreak, getReadingStartDate, getScheduleDays, getDateForReadingDay, getCurrentSchedule } from '../lib/reading-plan'
+import { sections, getDaysInSection, getTodayReadingDay, calcStreak, getReadingStartDate, getScheduleDays, getDateForReadingDay, getCurrentSchedule, PLAN_DAYS } from '../lib/reading-plan'
 import { shareContent } from '../lib/share'
 import { Flame, FileText, TrendingUp, ChevronLeft, Clock, ChevronRight, Share2, CheckCircle } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
@@ -51,7 +51,7 @@ export default function Stats() {
 
       let longestStreak = 0
       let tempStreak = 0
-      for (let i = 1; i <= 366; i++) {
+      for (let i = 1; i <= PLAN_DAYS; i++) {
         if (completedDays.has(i)) {
           tempStreak++
           longestStreak = Math.max(longestStreak, tempStreak)
@@ -90,7 +90,7 @@ export default function Stats() {
       }
 
       const heat: Record<string, boolean> = {}
-      for (let i = 1; i <= 366; i++) {
+      for (let i = 1; i <= PLAN_DAYS; i++) {
         heat[i.toString()] = completedDays.has(i)
       }
       setHeatmap(heat)
@@ -104,7 +104,7 @@ export default function Stats() {
       })
 
       setStats({
-        totalDays: 366,
+        totalDays: PLAN_DAYS,
         currentStreak,
         longestStreak,
         completedDays: completedDays.size,
@@ -330,7 +330,7 @@ export default function Stats() {
               const today = getTodayReadingDay()
               const dayNum = today ? today - 34 + i : 1
               const isCompleted = heatmap[dayNum.toString()] || false
-              const isFuture = dayNum > (today || 366)
+              const isFuture = dayNum > (today || PLAN_DAYS)
               return (
                 <div
                   key={i}

@@ -166,8 +166,8 @@ serve(async (req) => {
       let title = "Leitura da Bíblia"
       let body = ""
 
-      if (dayNumber > 0 && dayNumber <= 366) {
-        body = `Dia ${dayNumber} de 366`
+      if (dayNumber > 0 && dayNumber <= 364) {
+        body = `Dia ${dayNumber} de 364`
         if (streak > 0) {
           body += ` | 🔥 ${streak} dias seguidos`
         }

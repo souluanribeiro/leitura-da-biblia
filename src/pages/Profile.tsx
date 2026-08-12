@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { loadProfile, saveProfile, type UserProfile, getTheme, setTheme, type Theme, clearUserLocalData } from '../lib/user-profile'
-import { getReadingStartDate, calcStreak, getTodayReadingDay, schedules, getScheduleName, getCurrentSchedule, setCurrentSchedule } from '../lib/reading-plan'
+import { getReadingStartDate, calcStreak, getTodayReadingDay, schedules, getScheduleName, getCurrentSchedule, setCurrentSchedule, PLAN_DAYS } from '../lib/reading-plan'
 import { isPushSupported, subscribeToPush, unsubscribeFromPush, getSubscriptionStatus, updatePreferredHour } from '../lib/push'
 import { exportProgress, importProgress } from '../lib/backup'
 import { showToast } from '../components/Toast'
@@ -206,7 +206,7 @@ export default function Profile() {
     )
   }
 
-  const pct = daysRead > 0 ? Math.round((daysRead / 366) * 100) : 0
+  const pct = daysRead > 0 ? Math.round((daysRead / PLAN_DAYS) * 100) : 0
 
   return (
     <div className="min-h-screen bg-bg-dark pb-24">

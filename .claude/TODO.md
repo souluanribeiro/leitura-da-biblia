@@ -20,7 +20,7 @@
 | 3 | Função `getChaptersList` duplicada em Dashboard.tsx e ReadingDayPage.tsx | ✅ Corrigido |
 | 4 | Cálculo de streak duplicado e inconsistente (Dashboard vs Estatísticas) | ✅ Corrigido |
 | 5 | Dias duplicados no plano de leitura causam contagem errada de capítulos | ✅ Corrigido |
-| 6 | Porcentagem no YearView do Calendário divide por 366 em vez de dias do mês | ✅ Corrigido |
+| 6 | Porcentagem no YearView do Calendário divide por 364 em vez de dias do mês | ✅ Corrigido |
 | 7 | Sem tratamento de erro visível para o usuário quando Supabase falha | ✅ Corrigido |
 | 8 | Sem tela de boas-vindas quando o plano não começou (configura automaticamente) | ✅ Corrigido |
 
@@ -66,7 +66,7 @@
 | 35 | Título genérico no HTML ("Leitura da Biblia") | ✅ Corrigido |
 | 36 | Timezone hardcoded UTC-3 na Edge Function | ❌ |
 | 37 | Sem limite de tamanho na anotação (texto infinito) | ✅ Corrigido |
-| 38 | Sem suporte a vários anos (plano para 366 dias sem recomeçar) | ❌ |
+| 38 | Sem suporte a vários anos (plano para 364 dias sem recomeçar) | ❌ |
 | 39 | Sem internacionalização (tudo em português) | ❌ |
 
 ---
