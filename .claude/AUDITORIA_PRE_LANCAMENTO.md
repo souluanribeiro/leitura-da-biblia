@@ -13,6 +13,11 @@ com sucesso em 13/08**: senha trocada por uma forte/única, fator TOTP verificad
 banco (`auth.mfa_factors.status = 'verified'`), login completo testado — pediu o código
 de 6 dígitos, o admin confirmou com o Google Authenticator e entrou normalmente.
 
+**Novo item pendente (13/08, não é bloqueador de segurança):** ícone do app / splash
+screen — ver seção "PENDÊNCIA — ícone/splash" no fim deste arquivo. Tentativa de correção
+publicada (commit `9a2fc9d`) mas usuário reportou "ficou ruim" sem detalhar o motivo;
+retomar perguntando o que exatamente ficou ruim antes de tentar de novo.
+
 **Falta só:** recrutar 1 testador pra validar notificação push real (hoje 0 inscritos) e
 testar instalação do PWA. Ver checklist no final do arquivo.
 
@@ -139,9 +144,42 @@ etc.) ignora completamente a trava da tela.
 4. ⏸️ **Recrutar 1 testador para validar push notification real** — `push_subscriptions`
    segue com 0 inscritos; sem isso não dá pra confirmar que a notificação chega de
    verdade num dispositivo real.
-5. ⏸️ **Testar instalação do PWA** — instalar o app no celular/computador e conferir
-   visualmente (ícone, splash screen, funcionamento offline básico).
-6. Só depois de 4 e 5: liberar divulgação.
+5. ⚠️ **Testar instalação do PWA** — feito parcialmente em 13/08: app instalou e abriu
+   certo, mas a tela de carregamento (splash) mostrava o ícone grande demais. Ver seção
+   "PENDÊNCIA — ícone/splash" abaixo.
+6. Só depois de 4 e 5 (splash) resolvidos: liberar divulgação.
+
+## PENDÊNCIA — ícone/splash (aberta em 13/08)
+
+**Sintoma original:** ao abrir o app instalado, o Android mostra por um instante uma
+tela de carregamento nativa (gerada pelo próprio sistema a partir do `manifest.json`, o
+app não desenha isso) com o ícone aparecendo grande demais na tela.
+
+**Causa:** o ícone (`public/icons/icon-512.png` e `icon-192.png`) preenchia o quadrado
+inteiro sem nenhuma margem — decisão de design de uma sessão anterior (10/08, "sem
+borda preta, sem cantos transparentes").
+
+**Tentativa de correção (commit `9a2fc9d`, publicado):**
+- Usuário forneceu nova imagem só do livro, fundo transparente, mas em resolução baixa
+  (64x64 px — precisou ampliar ~8x pra chegar em 512x512, o que pode ter deixado borrado).
+- Gerados novos ícones com `sharp` (instalado só no scratchpad da sessão, script não
+  ficou versionado no repo): fundo azul sólido `#3b82f6` (cor de destaque do app), livro
+  a 65% do quadrado nos ícones normais, 50% no maskable, 72% no favicon.
+- Service Worker atualizado pra `leitura-v5` (força invalidar cache antigo).
+
+**Resultado:** usuário testou e disse **"ficou ruim"**, sem detalhar o motivo. Possíveis
+causas ainda não descartadas:
+- Imagem borrada pela baixa resolução de origem.
+- Cor azul não ficou como esperado.
+- Ainda apareceu grande (pode não ser só questão de margem — o algoritmo do Android
+  pode ter um comportamento diferente do que o esperado).
+- Cache antigo do Android/Chrome ainda servindo os ícones velhos (o usuário reinstalou o
+  app, mas **não chegou a limpar o cache/dados do site no Chrome antes** — passo que eu
+  tinha recomendado mas a sessão foi encerrada antes de confirmar se ele fez isso).
+
+**Próxima sessão: perguntar primeiro** o que exatamente ficou ruim (idealmente pedir um
+print de tela) antes de tentar qualquer nova correção — não repetir a mesma tentativa às
+cegas.
 
 ## Pendências conhecidas de TODO.md (não bloqueiam lançamento)
 

@@ -329,12 +329,56 @@ App de leitura bíblica em 364 dias, com identidade visual dark moderna, vídeos
 
 ---
 
-*Última atualização: 12/08/2026*
+*Última atualização: 13/08/2026*
 
-## Estado recente (12/08/2026) — AUDITORIA PRÉ-LANÇAMENTO, EM ANDAMENTO
+## Estado recente (13/08/2026)
 
-**Veredito atual: NÃO divulgar ainda.** Ver `.claude/AUDITORIA_PRE_LANCAMENTO.md` para o
-checklist completo e atualizado — este resumo aqui é só o essencial pra retomar rápido.
+### Segurança do admin-app: RESOLVIDA e testada — sem pendência
+Toda a cadeia de MFA (client-side + server-side + fail-open) foi corrigida na sessão
+anterior e **testada ao vivo com sucesso nesta sessão**: senha do admin trocada por uma
+forte/única (SQL direto no projeto `lbgztfqgzjmiwvcghnki`, id `417e9bba-...`), fator TOTP
+confirmado `verified` em `auth.mfa_factors`, login completo testado (pediu código,
+Google Authenticator funcionou, painel abriu normal). **Nenhuma ação de segurança
+pendente.** Detalhes técnicos completos em `.claude/AUDITORIA_PRE_LANCAMENTO.md`.
+
+### ⏸️ PENDENTE — Ícone do app / tela de carregamento (splash) ainda ruim
+**Problema original:** ao abrir o app instalado no celular, o Android mostra por um
+instante uma tela de carregamento nativa com o ícone do app grande demais — o ícone
+antigo (`icon-512.png` etc.) preenchia o quadrado 512x512 inteiro sem nenhuma margem.
+
+**Tentativa desta sessão (commit `9a2fc9d`, publicado):** usuário mandou uma imagem nova
+só do livro (`C:\Users\luang\OneDrive\Imagens\icone leitura da biblia.png`, 64x64,
+fundo transparente — resolução baixa, teve que ampliar bastante). Gerei novos
+`icon-512.png`/`icon-192.png` com fundo azul sólido `#3b82f6` (cor de destaque do app) e
+o livro ocupando só 65% do quadrado (50% na versão maskable), usando `sharp` (instalado
+temporariamente no scratchpad, não é dependência do projeto). Bump do Service Worker
+para `leitura-v5` pra forçar atualização de cache. Tudo commitado e com push feito.
+
+**Resultado do teste do usuário: "ficou ruim".** Não foi esclarecido exatamente o que
+ficou ruim (ícone borrado pela baixa resolução da imagem original? cor errada? ainda
+apareceu grande? ainda mostrou o ícone antigo por causa de cache do Android/Chrome?) —
+**perguntar isso primeiro na próxima sessão antes de tentar qualquer correção.**
+
+**Para retomar amanhã:**
+1. Perguntar ao usuário o que exatamente ficou ruim (idealmente pedir print de tela).
+2. Se for qualidade de imagem (borrado): considerar pedir uma imagem de origem em
+   resolução maior, já que a atual é só 64x64 ampliada ~8x para 512x512.
+3. Se for cache antigo ainda aparecendo: confirmar que o deploy do Vercel realmente
+   terminou e que o usuário limpou o cache do site no Chrome do celular antes de
+   reinstalar (ele ainda não tinha feito esse passo quando a sessão foi encerrada).
+4. Arquivos atuais em `public/icons/icon-512.png`, `icon-192.png`,
+   `icon-maskable-512.png`, `public/favicon.png` — script gerador ficou só no
+   scratchpad da sessão (não versionado no repo), precisa recriar se for gerar de novo.
+
+### Checklist de lançamento — só falta isso
+- [x] Segurança do admin-app (MFA client+server-side, testado)
+- [x] Migrations, deploy de edge functions, npm audit, build
+- [ ] **Ícone/splash screen** (pendência desta sessão, ver acima)
+- [ ] Recrutar 1 testador pra notificação push real (0 inscritos até agora; push só foi
+      testado no navegador do computador — no celular do usuário, Galaxy A31, a
+      notificação não chegou; identificado que é bloqueio de notificação específico
+      daquele modelo/versão de celular, não é bug do app)
+- [ ] Testar instalação do PWA de novo depois do ícone corrigido
 
 ### O que foi feito e publicado nesta sessão
 - **Leitura-da-Biblia** (commit `fd46782`, em produção):
