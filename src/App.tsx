@@ -21,7 +21,7 @@ const BibleAgent = lazy(() => import('./pages/BibleAgent'))
 function PageLoader() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg-dark">
-      <div className="text-accent text-xl animate-pulse">Carregando...</div>
+      <img src="/favicon.png" alt="Leitura da Bíblia" className="w-12 h-12 animate-pulse" />
     </div>
   )
 }
@@ -56,7 +56,7 @@ export default function App() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg-dark">
-        <div className="text-accent text-xl animate-pulse">Carregando...</div>
+        <img src="/favicon.png" alt="Leitura da Bíblia" className="w-12 h-12 animate-pulse" />
       </div>
     )
   }
