@@ -55,7 +55,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-bg-dark p-4 fade-in">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <img src="/favicon.png" alt="Leitura da Bíblia" className="w-16 h-16 mx-auto mb-4" />
+          <img src="/favicon.png" alt="Leitura da Bíblia" className="w-16 h-16 mx-auto mb-4 app-book-icon" />
           <h1 className="text-2xl font-bold text-text-primary">Leitura da Bíblia</h1>
           <p className="text-text-muted text-sm mt-1">Plano de leitura em 1 ano • TNM</p>
         </div>

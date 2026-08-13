@@ -16,7 +16,7 @@ export default function Layout() {
     <div className="h-screen bg-bg-dark flex flex-col overflow-hidden">
       <header className="shrink-0 bg-bg-dark/95 backdrop-blur-sm border-b border-white/5 px-4 py-3 flex items-center justify-between">
         <NavLink to="/" className="flex items-center gap-2 text-accent font-bold">
-          <img src="/favicon.png" alt="" className="w-5 h-5" />
+          <img src="/favicon.png" alt="" className="w-5 h-5 app-book-icon" />
           <span className="text-sm">Leitura da Bíblia</span>
         </NavLink>
         <NavLink to="/perfil" className="text-text-muted hover:text-accent p-0.5 icon-btn">
