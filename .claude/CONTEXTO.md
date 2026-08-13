@@ -358,6 +358,13 @@ checklist completo e atualizado — este resumo aqui é só o essencial pra reto
   - `npm audit fix` — sobrou 1 vulnerabilidade moderada em `react-router` (só corrige com
     upgrade major v6→v7, deixado como risco residual baixo documentado).
 
+### ✅ TESTADO AO VIVO (13/08) — MFA funcionando de ponta a ponta
+Senha do admin trocada por uma forte/única (via SQL, projeto `lbgztfqgzjmiwvcghnki`,
+id `417e9bba-...`). Fator TOTP confirmado `verified` em `auth.mfa_factors`. Login
+completo testado pelo usuário: pediu o código de 6 dígitos, Google Authenticator
+funcionou, entrou normalmente. **Só falta pra liberar divulgação:** recrutar 1
+testador pra notificação push real (0 inscritos) e testar instalação do PWA.
+
 ### ✅ RESOLVIDO (12/08, sessão seguinte) — MFA agora tem enforcement no servidor
 Corrigido e publicado (migration `037_require_aal2_for_admin_rls.sql` + redeploy de
 `admin-operations`/`send-admin-notification`): nova função `is_admin_aal2()` protege

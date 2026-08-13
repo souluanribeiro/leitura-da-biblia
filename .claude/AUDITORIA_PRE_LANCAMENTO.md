@@ -5,13 +5,16 @@
 
 ---
 
-## VEREDITO (atualizado 12/08 à noite): ainda NÃO divulgar
+## VEREDITO (atualizado 13/08): quase pronto — falta só 1 item
 
-Itens 1-9 desta auditoria foram resolvidos e publicados (commits `fd46782` no
-Leitura-da-Biblia e `58ddd6a` no admin-app, ambos em produção). **Mas a correção do
-item 3 (MFA) introduziu uma falha de segurança nova e mais séria, ainda não corrigida.**
-Ver seção "BLOQUEADOR NOVO — MFA só client-side" abaixo. **Não divulgar até isso ser
-corrigido no servidor**, não só na tela.
+Itens 1-9 resolvidos e publicados. O bloqueador novo de MFA (itens 10-12) também foi
+corrigido no servidor (migration `037`, commits `e251c8c`/`9f01ff9`) e **testado ao vivo
+com sucesso em 13/08**: senha trocada por uma forte/única, fator TOTP verificado no
+banco (`auth.mfa_factors.status = 'verified'`), login completo testado — pediu o código
+de 6 dígitos, o admin confirmou com o Google Authenticator e entrou normalmente.
+
+**Falta só:** recrutar 1 testador pra validar notificação push real (hoje 0 inscritos) e
+testar instalação do PWA. Ver checklist no final do arquivo.
 
 ---
 
@@ -126,14 +129,19 @@ etc.) ignora completamente a trava da tela.
 8. ⏸️ Teste em produção pendente: PWA install, notificação push real (0 inscritos — recrutar 1 testador), 429 do Sheep.
 
 ### PRÓXIMA SESSÃO — começar por aqui
-1. ✅ ~~Resolver o BLOQUEADOR NOVO~~ — feito (ver seção acima, itens 10-12 corrigidos
-   1-2, item 3 aceito como risco, item 4 depende do usuário).
-2. **Testar login com MFA de verdade** (usuário precisa estar com o celular em mãos) —
-   confirmar que o fluxo completo funciona e que o admin realmente tem um fator TOTP
-   verificado (senão o painel fica com dados bloqueados até ele cadastrar).
-3. Trocar a senha do admin-app por uma forte e única.
-4. Recrutar 1 testador para validar push notification real.
-5. Só depois disso tudo: liberar divulgação.
+1. ✅ ~~Resolver o BLOQUEADOR NOVO~~ — feito (itens 10-12: 1-2 corrigidos no servidor,
+   item 3 aceito como risco, item 4 depende do usuário).
+2. ✅ ~~Testar login com MFA de verdade~~ — feito em 13/08. Senha trocada
+   (`417e9bba-583e-454f-bf04-40cfd127f3af`), fator TOTP verificado, login completo
+   testado com sucesso (pediu código, Google Authenticator funcionou, entrou normal).
+3. ✅ ~~Trocar a senha do admin-app~~ — feito em 13/08 (senha forte gerada e aplicada
+   via SQL no projeto correto `lbgztfqgzjmiwvcghnki`).
+4. ⏸️ **Recrutar 1 testador para validar push notification real** — `push_subscriptions`
+   segue com 0 inscritos; sem isso não dá pra confirmar que a notificação chega de
+   verdade num dispositivo real.
+5. ⏸️ **Testar instalação do PWA** — instalar o app no celular/computador e conferir
+   visualmente (ícone, splash screen, funcionamento offline básico).
+6. Só depois de 4 e 5: liberar divulgação.
 
 ## Pendências conhecidas de TODO.md (não bloqueiam lançamento)
 
