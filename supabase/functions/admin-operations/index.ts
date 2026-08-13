@@ -177,6 +177,34 @@ serve(async (req) => {
       })
     }
 
+    if (action === "delete_user_conversations" && userId) {
+      if (!isValidUUID(userId)) {
+        return new Response(JSON.stringify({ error: "ID de usuário inválido" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+      // Apaga só o histórico de chat com o Sheep — NÃO mexe em conta, perfil,
+      // progresso de leitura, notas ou inscrições push (isso é o `delete_user`,
+      // ação de exclusão total via LGPD, separada de propósito).
+      const { error: chatError } = await supabase.from("chat_history").delete().eq("user_id", userId)
+      const { error: convError } = await supabase.from("conversations").delete().eq("user_id", userId)
+
+      if (chatError || convError) {
+        console.error("delete_user_conversations error:", chatError?.message, convError?.message)
+        return new Response(JSON.stringify({ success: false, error: "Erro ao excluir as conversas" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        })
+      }
+
+      await audit(supabase, user.id, user.email || "", "delete_user_conversations", "chat_history", userId, "Exclusão de todas as conversas do usuário (chat, não a conta)")
+
+      return new Response(JSON.stringify({ success: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
     if (action === "delete_user" && userId) {
       if (!isValidUUID(userId)) {
         return new Response(JSON.stringify({ error: "ID de usuário inválido" }), {
