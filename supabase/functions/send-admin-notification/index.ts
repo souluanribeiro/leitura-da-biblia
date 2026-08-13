@@ -16,6 +16,21 @@ function getCorsHeaders(origin: string | null) {
   }
 }
 
+// Decodifica o JWT (sem validar assinatura — já validado por auth.getUser acima)
+// só para ler a claim "aal". service_role ignora RLS, então esta função é a
+// única barreira contra uma sessão aal1 disparando push para todos os usuários.
+function getAal(token: string): string | null {
+  try {
+    const payload = token.split(".")[1]
+    if (!payload) return null
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+    const claims = JSON.parse(json)
+    return typeof claims?.aal === "string" ? claims.aal : null
+  } catch {
+    return null
+  }
+}
+
 serve(async (req) => {
   const origin = req.headers.get("origin")
   const corsHeaders = getCorsHeaders(origin)
@@ -57,6 +72,13 @@ serve(async (req) => {
 
     if (!profile?.is_admin) {
       return new Response(JSON.stringify({ error: "Acesso não autorizado" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
+    if (getAal(token) !== "aal2") {
+      return new Response(JSON.stringify({ error: "Autenticação em duas etapas exigida para esta ação" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })

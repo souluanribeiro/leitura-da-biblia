@@ -358,7 +358,19 @@ checklist completo e atualizado — este resumo aqui é só o essencial pra reto
   - `npm audit fix` — sobrou 1 vulnerabilidade moderada em `react-router` (só corrige com
     upgrade major v6→v7, deixado como risco residual baixo documentado).
 
-### ⚠️ PENDÊNCIA CRÍTICA — MFA só bloqueia a tela, não o servidor
+### ✅ RESOLVIDO (12/08, sessão seguinte) — MFA agora tem enforcement no servidor
+Corrigido e publicado (migration `037_require_aal2_for_admin_rls.sql` + redeploy de
+`admin-operations`/`send-admin-notification`): nova função `is_admin_aal2()` protege
+todas as 22 policies admin do banco (encontradas via query direta em `pg_policy`, não só
+arquivos — havia duplicatas em `knowledge_base`); as duas edge functions que usam
+`service_role` (bypassam RLS) ganharam checagem manual da claim `aal` do JWT. Fail-open
+do `Layout.tsx` também corrigido (erro agora bloqueia, não libera). Detalhes completos e
+o único risco aceito (não dá pra impedir 100% via código que um atacante com a senha
+cadastre o próprio MFA — limitação do Supabase/GoTrue) em
+`.claude/AUDITORIA_PRE_LANCAMENTO.md`. **Ainda falta:** testar login com MFA real e
+trocar a senha do admin por uma forte/única.
+
+### Diagnóstico original (mantido para histórico)
 Uma revisão de segurança automática nos commits publicados encontrou que o "MFA
 obrigatório" do admin-app é **enforcement só client-side** — nenhuma RLS policy nem edge
 function do projeto `lbgztfqgzjmiwvcghnki` checa `auth.jwt()->>'aal'`. Na prática:

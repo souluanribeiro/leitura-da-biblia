@@ -46,16 +46,41 @@ etc.) ignora completamente a trava da tela.
    para eventos de enroll/unenroll de MFA (`admin_audit_log`, já existe a tabela — só
    falta o trigger), pra pelo menos detectar se isso acontecer.
 
-**Não implementado ainda** — ficou para a próxima sessão. Próximos passos sugeridos:
-1. Adicionar checagem de `aal2` nas RLS policies das tabelas sensíveis e nos edge functions
-   `admin-operations`/`send-admin-notification` (checar claim `aal` do JWT, não só `is_admin`).
-2. Corrigir o fail-open do item 11 (fail-closed: enquanto não confirmar aal2, tratar como
-   bloqueado, inclusive em erro).
-3. Adicionar trigger de auditoria em enroll/unenroll de MFA (detective control, já que
-   preventive control total não é possível pela limitação do GoTrue).
-4. Confirmar com o usuário (`luanribeiroterapeuta@gmail.com`) que o MFA dele está
-   realmente ativo, e trocar a senha do admin-app por uma forte e única (mitigação mais
-   eficaz contra o cenário "atacante tem a senha").
+### Status (12/08, sessão seguinte): itens 1 e 2 corrigidos e publicados
+
+1. ✅ **Enforcement server-side de aal2** — nova função `public.is_admin_aal2()`
+   (migration `037_require_aal2_for_admin_rls.sql`), que checa `is_admin() AND
+   auth.jwt()->>'aal' = 'aal2'`. Todas as **22 policies admin** encontradas ao vivo no
+   banco (via query direta em `pg_policy`, não só arquivos de migration — havia policies
+   duplicadas históricas em `knowledge_base` que também precisaram ser trocadas) foram
+   atualizadas para usar `is_admin_aal2()` em vez de `is_admin()`/checagem inline.
+   `is_admin()` original **não foi alterada de propósito** — o login precisa dela antes
+   do desafio de MFA (senão criaria um paradoxo: precisa de aal2 pra saber que precisa
+   de aal2). Tabelas cobertas: `admin_audit_log`, `admin_notifications`, `agent_config`,
+   `chat_history`, `conversations`, `error_logs`, `knowledge_base`, `profiles` (leitura
+   de todos os perfis), `push_received_log`, `push_subscriptions`, `reading_progress`.
+   Edge functions `admin-operations` e `send-admin-notification` (usam `service_role`,
+   não passam pela RLS) ganharam checagem manual da claim `aal` do JWT — retornam 403
+   "Autenticação em duas etapas exigida" se a sessão não for aal2. Aplicado em produção
+   e deploy feito.
+2. ✅ **Fail-open corrigido** — `Layout.tsx` do admin-app: erro na checagem de MFA agora
+   trata como bloqueado (`setMfaMissing(true)`), não mais liberado. Conteúdo da página
+   também só renderiza depois que a checagem termina (`mfaChecked`), fechando a janela
+   onde o menu aparecia destravado por um instante antes da checagem responder.
+3. ⏸️ **Trigger de auditoria em enroll/unenroll de MFA — decidido NÃO implementar.**
+   Exigiria criar um trigger na tabela interna `auth.mfa_factors`, que é gerenciada pelo
+   próprio Supabase (GoTrue) e não tem precedente de customização neste projeto (só há
+   triggers em tabelas públicas). O risco de mexer no schema `auth` sem certeza de que o
+   comportamento se mantém estável entre versões do Supabase superou o benefício (é uma
+   defesa detectiva, não preventiva). Risco aceito.
+4. ⏸️ **Continua pendente, depende do usuário:** confirmar que o MFA do admin
+   (`luanribeiroterapeuta@gmail.com`) está realmente ativo (testar login completo com o
+   celular), e trocar a senha do admin-app por uma forte e única — essa é a mitigação
+   mais eficaz contra o cenário "atacante descobriu a senha", já que o Supabase (GoTrue)
+   permite que qualquer sessão autenticada (mesmo aal1) cadastre um novo fator TOTP e se
+   auto-eleve a aal2. Isso é uma limitação da própria plataforma, não corrigível só com
+   código da aplicação — a defesa real é a senha ser forte/única e o MFA já estar
+   configurado com o autenticador correto antes de qualquer exposição pública do painel.
 
 ---
 
@@ -101,11 +126,14 @@ etc.) ignora completamente a trava da tela.
 8. ⏸️ Teste em produção pendente: PWA install, notificação push real (0 inscritos — recrutar 1 testador), 429 do Sheep.
 
 ### PRÓXIMA SESSÃO — começar por aqui
-1. **Prioridade 1:** resolver o BLOQUEADOR NOVO (itens 10-12) — enforcement de MFA no
-   servidor, não só na tela. Ver seção acima para o plano sugerido.
-2. Testar login com MFA de verdade (usuário precisa estar com o celular em mãos).
-3. Recrutar 1 testador para validar push notification real.
-4. Só depois disso tudo: liberar divulgação.
+1. ✅ ~~Resolver o BLOQUEADOR NOVO~~ — feito (ver seção acima, itens 10-12 corrigidos
+   1-2, item 3 aceito como risco, item 4 depende do usuário).
+2. **Testar login com MFA de verdade** (usuário precisa estar com o celular em mãos) —
+   confirmar que o fluxo completo funciona e que o admin realmente tem um fator TOTP
+   verificado (senão o painel fica com dados bloqueados até ele cadastrar).
+3. Trocar a senha do admin-app por uma forte e única.
+4. Recrutar 1 testador para validar push notification real.
+5. Só depois disso tudo: liberar divulgação.
 
 ## Pendências conhecidas de TODO.md (não bloqueiam lançamento)
 

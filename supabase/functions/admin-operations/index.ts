@@ -18,6 +18,22 @@ function isValidUUID(str: string): boolean {
   return UUID_REGEX.test(str)
 }
 
+// Decodifica o JWT (sem validar assinatura — já validado por auth.getUser acima)
+// só para ler a claim "aal" (authenticator assurance level). service_role
+// ignora RLS, então esta função é a única barreira contra uma sessão aal1
+// (só senha, sem o código de MFA) fazendo ações destrutivas por aqui.
+function getAal(token: string): string | null {
+  try {
+    const payload = token.split(".")[1]
+    if (!payload) return null
+    const json = atob(payload.replace(/-/g, "+").replace(/_/g, "/"))
+    const claims = JSON.parse(json)
+    return typeof claims?.aal === "string" ? claims.aal : null
+  } catch {
+    return null
+  }
+}
+
 async function audit(
   supabase: any,
   actorId: string,
@@ -88,6 +104,13 @@ serve(async (req) => {
 
     if (!profile?.is_admin) {
       return new Response(JSON.stringify({ error: "Acesso não autorizado" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      })
+    }
+
+    if (getAal(token) !== "aal2") {
+      return new Response(JSON.stringify({ error: "Autenticação em duas etapas exigida para esta ação" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       })
